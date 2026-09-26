@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-real/
+.env
+__pycache__/
+.venv/
+.pytest_cache/
+backend/data/
+backend/models/*.pt
+*.pt

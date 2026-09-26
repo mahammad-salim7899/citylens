@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { scroll-behavior: smooth; }
+
+::selection { background: #E7EAF9; color: #101A3D; }
+
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-civic-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50;
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.animate-scanline { animation: scanline 1.8s ease-in-out infinite; }
+
+@keyframes pulseSoft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-pulse-soft { animation: pulseSoft 1.6s ease-in-out infinite; }
+
+/* Leaflet markers & popups in the CityLens style */
+.citylens-pin { background: none; border: none; }
+.leaflet-container { font-family: Inter, system-ui, sans-serif; }
+.leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 2px 4px rgba(16,26,61,.06), 0 16px 40px -16px rgba(16,26,61,.25); }
+.leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.45; color: #0F172A; }
+.citylens-popup span { color: #64748B; font-size: 12px; }
+.citylens-popup-link { display: inline-block; margin-top: 6px; font-weight: 600; color: #1E2A6B !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
