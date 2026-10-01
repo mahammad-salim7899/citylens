@@ -83,8 +83,8 @@ export default function ReportIssue() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
       <StepIndicator current={1} />
 
-      <h1 className="mt-8 font-display text-3xl font-bold tracking-tight text-ink-900">Report a civic issue</h1>
-      <p className="mt-2 text-ink-500">Capture a photo of the problem or upload an existing image.</p>
+      <h1 className="mt-8 animate-rise font-display text-3xl font-bold tracking-tight text-ink-900">Report a civic issue</h1>
+      <p className="mt-2 animate-rise text-ink-500" style={{ '--d': '60ms' }}>Capture a photo of the problem or upload an existing image.</p>
 
       <div className="mt-8 space-y-5">
         {!file && <UploadBox onFileSelected={handleFileSelected} onError={(m) => toast.show(m, 'error')} />}
@@ -92,8 +92,9 @@ export default function ReportIssue() {
         {file && previewUrl && <ImagePreview file={file} previewUrl={previewUrl} onRemove={reset} />}
 
         {file && readingExif && (
-          <div className="flex items-center gap-2 rounded-2xl border border-ink-300/60 bg-white p-5 text-sm text-ink-500" role="status">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Reading location from your photo…
+          <div className="flex animate-rise items-center gap-3 rounded-2xl border border-ink-300/60 bg-white p-5 text-sm text-ink-500" role="status">
+            <Loader2 className="h-4 w-4 animate-spin text-civic-600" aria-hidden="true" /> Reading location from your photo…
+            <span className="ml-auto hidden h-1.5 w-24 overflow-hidden rounded-full sm:block"><span className="skeleton block h-full w-full" /></span>
           </div>
         )}
 
@@ -109,11 +110,11 @@ export default function ReportIssue() {
         )}
 
         {file && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex animate-rise flex-col gap-2 sm:flex-row sm:items-center sm:gap-4" style={{ '--d': '120ms' }}>
             <Button size="lg" className="w-full sm:w-auto" icon={ArrowRight} iconPosition="right" disabled={!canAnalyze} onClick={handleAnalyze}>
               Analyze Image
             </Button>
-            {hint && <p className="text-sm text-ink-500">{hint}</p>}
+            {hint && <p key={hint} className="animate-fade-in text-sm text-ink-500">{hint}</p>}
           </div>
         )}
       </div>

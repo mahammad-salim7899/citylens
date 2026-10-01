@@ -9,9 +9,9 @@ export default function LocationCard({ location, onUseDeviceLocation, resolving,
 
   if (!location) {
     return (
-      <div className="animate-fade-up rounded-2xl border border-ink-300/60 bg-white p-6">
+      <div className="animate-rise rounded-2xl border border-ink-300/60 bg-white p-6">
         <div className="flex items-start gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-signal-amber" aria-hidden="true" />
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 animate-pop text-signal-amber" aria-hidden="true" style={{ '--d': '150ms' }} />
           <div className="flex-1">
             <h3 className="font-display text-base font-semibold text-ink-900">Location information unavailable</h3>
             <p className="mt-1 text-sm text-ink-500">This image does not contain GPS location information.</p>
@@ -31,9 +31,9 @@ export default function LocationCard({ location, onUseDeviceLocation, resolving,
   const fromPhoto = location.location_source === 'image_exif'
 
   return (
-    <div className="animate-fade-up rounded-2xl border border-ink-300/60 bg-white p-6">
+    <div className="animate-rise rounded-2xl border border-ink-300/60 bg-white p-6">
       <div className="flex items-start gap-3">
-        <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-civic-700" aria-hidden="true" />
+        <MapPin className="mt-0.5 h-5 w-5 shrink-0 animate-pop text-civic-700" aria-hidden="true" style={{ '--d': '150ms' }} />
         <div className="min-w-0 flex-1">
           <h3 className="font-display text-base font-semibold text-ink-900">Location detected</h3>
           <p className="mt-1 text-base font-medium text-ink-900">{location.address}</p>
@@ -51,7 +51,7 @@ export default function LocationCard({ location, onUseDeviceLocation, resolving,
           </div>
 
           {showMap && (
-            <div className="mt-4">
+            <div className="mt-4 animate-scale-in overflow-hidden rounded-xl">
               <MapView complaints={[{ id: 'preview', issue: null, latitude: location.latitude, longitude: location.longitude }]} height="h-48" />
             </div>
           )}
@@ -63,10 +63,10 @@ export default function LocationCard({ location, onUseDeviceLocation, resolving,
             className="focus-ring mt-4 flex items-center gap-1 rounded text-xs font-medium text-ink-400 hover:text-ink-600"
           >
             Advanced location details
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} aria-hidden="true" />
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-300 ease-out-expo ${showAdvanced ? 'rotate-180' : ''}`} aria-hidden="true" />
           </button>
           {showAdvanced && (
-            <dl className="mt-2 grid grid-cols-[auto,1fr] gap-x-4 gap-y-0.5 rounded-lg bg-ink-100 px-3 py-2 font-mono text-xs text-ink-600">
+            <dl className="mt-2 grid animate-slide-down grid-cols-[auto,1fr] gap-x-4 gap-y-0.5 rounded-lg bg-ink-100 px-3 py-2 font-mono text-xs text-ink-600">
               <dt>latitude</dt><dd>{location.latitude.toFixed(6)}</dd>
               <dt>longitude</dt><dd>{location.longitude.toFixed(6)}</dd>
               <dt>location_source</dt><dd>{location.location_source}</dd>

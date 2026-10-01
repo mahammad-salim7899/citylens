@@ -16,6 +16,68 @@ html { scroll-behavior: smooth; }
 }
 .animate-scanline { animation: scanline 1.8s ease-in-out infinite; }
 
+/* ── Motion primitives ────────────────────────────────────────────
+   Keyframes and timing tokens live in tailwind.config.js; these are
+   the few pieces that need real CSS (state classes, SVG, gradients). */
+
+/* Scroll reveal — toggled by <Reveal>. Delay comes from --d. */
+.reveal {
+  transition:
+    opacity 720ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
+    translate 720ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms),
+    scale 720ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms);
+}
+.reveal:not(.is-visible) { opacity: 0; }
+.reveal-up:not(.is-visible) { translate: 0 18px; }
+.reveal-scale:not(.is-visible) { scale: 0.97; }
+
+/* Skeleton placeholder with a soft travelling highlight. */
+.skeleton {
+  background-color: #E8ECF3;
+  background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.75) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.8s linear infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* SVG stroke drawing. Give the shape pathLength="1". */
+.svg-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: svg-draw 900ms cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0ms) forwards;
+}
+@keyframes svg-draw { to { stroke-dashoffset: 0; } }
+
+/* A dashed connector whose dashes travel — "data flowing" between steps. */
+.dash-line {
+  height: 1px;
+  background-image: linear-gradient(90deg, #A3AEE6 50%, transparent 0);
+  background-size: 8px 1px;
+}
+
+/* Faint detection grid for the analysis screen. */
+.scan-grid {
+  background-image:
+    linear-gradient(rgba(163, 174, 230, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(163, 174, 230, 0.14) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* A short horizontal shake for a field that failed validation. */
+@keyframes shake {
+  10%, 90% { translate: -1px 0; }
+  20%, 80% { translate: 2px 0; }
+  30%, 50%, 70% { translate: -4px 0; }
+  40%, 60% { translate: 4px 0; }
+}
+.animate-shake { animation: shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+/* Used inline by Toast (duration varies per toast). */
+@keyframes toast-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
 @keyframes pulseSoft {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
@@ -24,6 +86,22 @@ html { scroll-behavior: smooth; }
 
 /* Leaflet markers & popups in the CityLens style */
 .citylens-pin { background: none; border: none; }
+/* Pins drop onto the map. Leaflet positions the marker with `transform`,
+   so the animation moves the inner SVG with `translate` instead — the pin
+   can never end up away from its real coordinates. */
+.citylens-pin > svg {
+  transform-origin: 50% 100%;
+  animation: pin-drop 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.citylens-pin:nth-child(3n + 2) > svg { animation-delay: 70ms; }
+.citylens-pin:nth-child(3n + 3) > svg { animation-delay: 140ms; }
+@keyframes pin-drop {
+  0% { opacity: 0; translate: 0 -18px; scale: 0.7; }
+  60% { opacity: 1; translate: 0 2px; scale: 1.04; }
+  100% { opacity: 1; translate: none; scale: none; }
+}
+.leaflet-popup { animation: fade-in 220ms ease-out both; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 .leaflet-container { font-family: Inter, system-ui, sans-serif; }
 .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 2px 4px rgba(16,26,61,.06), 0 16px 40px -16px rgba(16,26,61,.25); }
 .leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.45; color: #0F172A; }
@@ -31,5 +109,16 @@ html { scroll-behavior: smooth; }
 .citylens-popup-link { display: inline-block; margin-top: 6px; font-weight: 600; color: #1E2A6B !important; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Show everything in its final state — nothing waits on motion. */
+  .reveal { opacity: 1 !important; translate: none !important; scale: none !important; }
+  .svg-draw { stroke-dashoffset: 0 !important; }
+  .skeleton { animation: none !important; }
 }

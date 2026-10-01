@@ -32,9 +32,9 @@ function TrackSearch({ id }) {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-12 sm:px-6 sm:py-16">
-      <h1 className="font-display text-3xl font-bold tracking-tight text-ink-900">Track your complaint</h1>
-      <p className="mt-2 text-ink-500">Enter your complaint ID to see its current status.</p>
-      <form onSubmit={handleSearch} className="mt-6 flex gap-2">
+      <h1 className="animate-rise font-display text-3xl font-bold tracking-tight text-ink-900">Track your complaint</h1>
+      <p className="mt-2 animate-rise text-ink-500" style={{ '--d': '60ms' }}>Enter your complaint ID to see its current status.</p>
+      <form onSubmit={handleSearch} className="mt-6 flex animate-rise gap-2" style={{ '--d': '120ms' }}>
         <label htmlFor="track-id" className="sr-only">Complaint ID</label>
         <input
           id="track-id"
@@ -42,20 +42,20 @@ function TrackSearch({ id }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. CL-2026-00123"
           autoComplete="off"
-          className="focus-ring min-w-0 flex-1 rounded-xl border border-ink-300 bg-white px-4 py-2.5 text-sm text-ink-900 placeholder:text-ink-400"
+          className="focus-ring min-w-0 flex-1 rounded-xl border border-ink-300 bg-white px-4 py-2.5 text-sm text-ink-900 transition-[border-color,box-shadow] duration-200 placeholder:text-ink-400 hover:border-ink-400 focus-visible:border-civic-500"
         />
         <Button type="submit" icon={Search}>Track</Button>
       </form>
 
-      {id && <p className="mt-4 text-sm text-signal-red" role="alert">We couldn't find a complaint with ID “{id}”. Check the ID and try again.</p>}
+      {id && <p className="mt-4 animate-rise text-sm text-signal-red" role="alert">We couldn't find a complaint with ID “{id}”. Check the ID and try again.</p>}
 
       {recent?.length > 0 && (
-        <div className="mt-10">
+        <div className="mt-10 animate-fade-in" style={{ '--d': '200ms' }}>
           <p className="text-sm font-medium text-ink-900">Or pick one of your recent reports</p>
           <div className="mt-3 space-y-2">
-            {recent.slice(0, 4).map((c) => (
-              <Link key={c.id} to={`/track/${c.id}`}
-                className="focus-ring flex items-center gap-3 rounded-xl border border-ink-300/60 bg-white px-4 py-3 text-sm transition-colors hover:border-civic-500">
+            {recent.slice(0, 4).map((c, i) => (
+              <Link key={c.id} to={`/track/${c.id}`} style={{ '--d': `${260 + i * 70}ms` }}
+                className="focus-ring flex animate-rise items-center gap-3 rounded-xl border border-ink-300/60 bg-white px-4 py-3 text-sm transition-[border-color,box-shadow,transform] duration-300 ease-out-expo hover:-translate-y-0.5 hover:border-civic-300 hover:shadow-card">
                 <IssueIcon issue={c.issue} size="sm" />
                 <span className="font-medium text-ink-900">{c.id}</span>
                 <span className="truncate text-ink-500">{issueLabel(c.issue)}</span>
@@ -74,7 +74,7 @@ export default function TrackComplaint() {
   const { data: complaint, loading, error, reload } = useLoader(() => (id ? getComplaint(id) : Promise.resolve(null)), [id])
 
   if (!id) return <TrackSearch />
-  if (loading) return <LoadingState label="Loading complaint…" />
+  if (loading) return <LoadingState variant="detail" label="Loading complaint…" />
   if (error) return <ErrorState message={error} onRetry={reload} />
   if (!complaint) return <TrackSearch id={id} />
 
@@ -85,25 +85,25 @@ export default function TrackComplaint() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
-      <Link to="/dashboard" className="focus-ring rounded text-sm font-medium text-ink-500 hover:text-ink-900">← My reports</Link>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
+      <Link to="/dashboard" className="focus-ring group inline-flex animate-fade-in items-center gap-1 rounded text-sm font-medium text-ink-500 transition-colors hover:text-ink-900"><span className="transition-transform duration-300 ease-out-expo group-hover:-translate-x-1">←</span> My reports</Link>
+      <div className="mt-3 flex animate-rise flex-wrap items-center gap-3" style={{ '--d': '40ms' }}>
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">{complaint.id}</h1>
         <StatusBadge status={complaint.status} />
         <SeverityBadge severity={complaint.severity} size="sm" />
       </div>
-      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-ink-500">
+      <p className="mt-1.5 flex animate-rise flex-wrap items-center gap-x-2 text-ink-500" style={{ '--d': '100ms' }}>
         <span className="font-medium text-ink-700">{issueLabel(complaint.issue)}</span> ·
         <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />{complaint.address}</span>
       </p>
-      <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-400">
+      <p className="mt-1 flex animate-rise items-center gap-1.5 text-sm text-ink-400" style={{ '--d': '140ms' }}>
         <Landmark className="h-3.5 w-3.5" aria-hidden="true" /> {departmentName(complaint.department)} · Reported {formatDateTime(complaint.created_at)}
       </p>
 
       {/* Authority outcome — the part of the loop the citizen cares about most */}
       {authorityNote && (
-        <div className={`mt-8 rounded-2xl border p-5 ${resolved ? 'border-signal-green/30 bg-signal-greenLight/50' : rejected ? 'border-signal-red/25 bg-signal-redLight/50' : 'border-civic-200 bg-civic-50'}`}>
+        <div style={{ '--d': '200ms' }} className={`mt-8 animate-rise rounded-2xl border p-5 ${resolved ? 'border-signal-green/30 bg-signal-greenLight/50' : rejected ? 'border-signal-red/25 bg-signal-redLight/50' : 'border-civic-200 bg-civic-50'}`}>
           <div className="flex items-start gap-3">
-            {resolved ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-signal-green" aria-hidden="true" />
+            {resolved ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 animate-pop text-signal-green" style={{ '--d': '420ms' }} aria-hidden="true" />
               : rejected ? <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-signal-red" aria-hidden="true" />
               : <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-civic-700" aria-hidden="true" />}
             <div>
@@ -118,7 +118,7 @@ export default function TrackComplaint() {
       )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+        <div className="space-y-6 lg:col-span-3 [&>*]:animate-rise [&>*:nth-child(2)]:[--d:340ms] [&>*:nth-child(3)]:[--d:420ms] [&>*]:[--d:260ms]">
           {complaint.after_image_url ? (
             <div className="rounded-2xl border border-ink-300/60 bg-white p-5">
               <h2 className="font-display text-base font-semibold text-ink-900">Resolution evidence</h2>

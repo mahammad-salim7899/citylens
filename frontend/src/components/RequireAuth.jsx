@@ -39,7 +39,7 @@ export default function RequireAuth({ role, children }) {
   const { user, ready } = useAuth()
   const location = useLocation()
 
-  if (!ready) return <LoadingState label="Checking your session…" />
+  if (!ready) return <LoadingState variant="inline" label="Checking your session…" />
   // Remember where they were headed so login can send them back.
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />
   if (role && user.role !== role) return <WrongRole needed={role} />

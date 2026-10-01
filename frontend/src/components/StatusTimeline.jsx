@@ -36,23 +36,37 @@ export default function StatusTimeline({ complaint, audience = 'citizen', showHi
       <ol className="mt-5">
         {steps.map((s, i) => {
           const isLast = i === steps.length - 1
+          const delay = { '--d': `${i * 90}ms` }
           return (
-            <li key={s.status} className="relative flex gap-3 pb-6 last:pb-0">
+            <li key={s.status} className="relative flex animate-rise gap-3 pb-6 last:pb-0" style={delay}>
               {!isLast && (
-                <span className={`absolute left-[11px] top-7 h-[calc(100%-1.25rem)] w-px ${s.state === 'done' ? 'bg-civic-700' : 'bg-ink-300'}`} aria-hidden="true" />
+                <>
+                  <span className="absolute left-[11px] top-7 h-[calc(100%-1.25rem)] w-px bg-ink-300" aria-hidden="true" />
+                  {/* The completed part of the track draws itself downward, step by step. */}
+                  {s.state === 'done' && (
+                    <span
+                      className="absolute left-[11px] top-7 h-[calc(100%-1.25rem)] w-px origin-top animate-grow-y bg-civic-700"
+                      style={{ '--d': `${i * 90 + 220}ms` }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </>
               )}
-              <span
-                className={`z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                  s.state === 'done' ? 'bg-civic-700 text-white'
-                    : s.state === 'active' ? 'border-2 border-civic-700 bg-white'
-                    : s.state === 'rejected' ? 'bg-signal-red text-white'
-                    : 'border border-ink-300 bg-white'
-                }`}
-                aria-hidden="true"
-              >
-                {s.state === 'done' && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-                {s.state === 'active' && <span className="h-2 w-2 animate-pulse-soft rounded-full bg-civic-700" />}
-                {s.state === 'rejected' && <X className="h-3.5 w-3.5" strokeWidth={3} />}
+              <span className="relative z-10 mt-0.5 h-6 w-6 shrink-0" aria-hidden="true">
+                {s.state === 'active' && <span className="absolute inset-0 animate-ripple rounded-full border-2 border-civic-500" style={{ animationIterationCount: 'infinite', '--d': '600ms' }} />}
+                <span
+                  className={`relative flex h-6 w-6 items-center justify-center rounded-full ${
+                    s.state === 'done' ? 'animate-pop bg-civic-700 text-white'
+                      : s.state === 'active' ? 'border-2 border-civic-700 bg-white'
+                      : s.state === 'rejected' ? 'animate-pop bg-signal-red text-white'
+                      : 'border border-ink-300 bg-white'
+                  }`}
+                  style={delay}
+                >
+                  {s.state === 'done' && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  {s.state === 'active' && <span className="h-2 w-2 animate-pulse-soft rounded-full bg-civic-700" />}
+                  {s.state === 'rejected' && <X className="h-3.5 w-3.5" strokeWidth={3} />}
+                </span>
               </span>
               <div>
                 <p className={`text-sm font-medium ${
@@ -75,7 +89,7 @@ export default function StatusTimeline({ complaint, audience = 'citizen', showHi
           <h4 className="text-sm font-semibold text-ink-900">{audience === 'authority' ? 'Activity history' : 'Updates'}</h4>
           <ul className="mt-3 space-y-4">
             {[...history].reverse().map((h, i) => (
-              <li key={i} className="grid grid-cols-[6.5rem,1fr] gap-3 text-sm">
+              <li key={i} className="grid animate-rise grid-cols-[6.5rem,1fr] gap-3 text-sm" style={{ '--d': `${Math.min(i, 8) * 60 + 300}ms` }}>
                 <span className="pt-0.5 text-xs font-medium text-ink-400">{formatDateTime(h.at)}</span>
                 <div>
                   <p className="text-ink-700">{h.note}</p>

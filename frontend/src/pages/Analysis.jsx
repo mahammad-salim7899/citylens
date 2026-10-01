@@ -47,8 +47,10 @@ export default function Analysis() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-2xl items-center justify-center px-4 py-16">
       {error ? (
-        <div className="max-w-md text-center" role="alert">
-          <AlertCircle className="mx-auto h-9 w-9 text-signal-red" aria-hidden="true" />
+        <div className="max-w-md animate-rise text-center" role="alert">
+          <span className="mx-auto flex h-14 w-14 animate-pop items-center justify-center rounded-full bg-signal-redLight" style={{ '--d': '120ms' }}>
+            <AlertCircle className="h-7 w-7 text-signal-red" aria-hidden="true" />
+          </span>
           <h1 className="mt-4 font-display text-xl font-semibold text-ink-900">Analysis failed</h1>
           <p className="mt-2 text-sm text-ink-500">{error}</p>
           <div className="mt-6 flex justify-center gap-3">

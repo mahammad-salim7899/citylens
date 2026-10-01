@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import IssueIcon from '../components/IssueIcon'
 import { useAuth } from '../context/AuthContext'
+import { Reveal } from '../components/Motion'
 
 const flow = [
   { icon: Camera, label: 'Citizen captures an image' },
@@ -69,40 +70,42 @@ export default function About() {
   const { mockMode } = useAuth()
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20">
-      <p className="text-xs font-semibold uppercase tracking-wide text-civic-600">About the project</p>
-      <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-ink-900">What is CityLens?</h1>
-      <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-700">
+      <p className="animate-rise text-xs font-semibold uppercase tracking-wide text-civic-600">About the project</p>
+      <h1 className="mt-3 animate-rise font-display text-4xl font-bold tracking-tight text-ink-900" style={{ '--d': '60ms' }}>What is CityLens?</h1>
+      <p className="mt-5 max-w-2xl animate-rise text-lg leading-relaxed text-ink-700" style={{ '--d': '120ms' }}>
         CityLens is a computer-vision-based civic reporting platform designed to make reporting urban problems easier, faster, and more transparent.
       </p>
-      <p className="mt-4 max-w-2xl leading-relaxed text-ink-500">
+      <p className="mt-4 max-w-2xl animate-rise leading-relaxed text-ink-500" style={{ '--d': '180ms' }}>
         It focuses on three civic issues: <strong className="text-ink-900">potholes</strong>, <strong className="text-ink-900">illegal parking</strong>, and{' '}
         <strong className="text-ink-900">garbage dumping</strong>. One photo is enough to identify the issue, estimate its severity, locate it, and
         route it to the correct civic authority — then the citizen follows it all the way to resolution.
       </p>
 
       <section className="mt-16">
-        <h2 className="font-display text-2xl font-bold text-ink-900">How a report moves through the system</h2>
+        <Reveal><h2 className="font-display text-2xl font-bold text-ink-900">How a report moves through the system</h2></Reveal>
         <ol className="mt-8">
           {flow.map((s, i) => (
-            <li key={s.label} className="relative flex gap-4 pb-7 last:pb-0">
+            <Reveal as="li" key={s.label} delay={i * 70} className="group relative flex gap-4 pb-7 last:pb-0">
               {i !== flow.length - 1 && <span className="absolute left-5 top-10 h-[calc(100%-2.5rem)] w-px bg-ink-300" aria-hidden="true" />}
-              <span className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-civic-100 text-civic-700">
+              <span className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-civic-100 text-civic-700 transition-[background-color,color,transform] duration-300 ease-out-expo group-hover:scale-105 group-hover:bg-civic-700 group-hover:text-white">
                 <s.icon className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
               </span>
               <p className="mt-2 text-[15px] font-medium text-ink-900">{s.label}</p>
-            </li>
+            </Reveal>
           ))}
         </ol>
       </section>
 
       <section className="mt-16">
+        <Reveal>
         <h2 className="font-display text-2xl font-bold text-ink-900">How each issue is detected</h2>
         <p className="mt-2 max-w-2xl text-ink-500">
           Detection and severity are separate steps: YOLO finds <em>what</em> and <em>where</em>; a rule-based severity engine on the server decides <em>how serious</em>.
         </p>
+        </Reveal>
         <div className="mt-8 space-y-4">
-          {detection.map((d) => (
-            <div key={d.issue} className="rounded-2xl border border-ink-300/60 bg-white p-6">
+          {detection.map((d, i) => (
+            <Reveal key={d.issue} delay={i * 90} className="group rounded-2xl border border-ink-300/60 bg-white p-6 transition-[box-shadow,border-color] duration-300 hover:border-civic-200 hover:shadow-card">
               <div className="flex items-center gap-3">
                 <IssueIcon issue={d.issue} />
                 <h3 className="font-display text-lg font-semibold text-ink-900">{d.title}</h3>
@@ -111,21 +114,21 @@ export default function About() {
                 <div><dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Detection</dt><dd className="mt-1 leading-relaxed text-ink-700">{d.how}</dd></div>
                 <div><dt className="text-xs font-semibold uppercase tracking-wide text-ink-400">Severity based on</dt><dd className="mt-1 leading-relaxed text-ink-700">{d.severity}</dd></div>
               </dl>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       <section className="mt-16">
-        <h2 className="font-display text-2xl font-bold text-ink-900">System architecture</h2>
+        <Reveal><h2 className="font-display text-2xl font-bold text-ink-900">System architecture</h2></Reveal>
         <div className="mt-8 space-y-3">
           {layers.map((layer, li) => (
-            <div key={layer.name}>
+            <Reveal key={layer.name} delay={60}>
               <div className="rounded-2xl border border-ink-300/60 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-civic-600">{layer.name}</p>
                 <div className={`mt-3 grid gap-3 ${layer.items.length > 1 ? 'sm:grid-cols-2 lg:grid-cols-3' : ''}`}>
                   {layer.items.map((it) => (
-                    <div key={it.label} className="flex items-start gap-3 rounded-xl bg-ink-50 p-3">
+                    <div key={it.label} className="flex items-start gap-3 rounded-xl bg-ink-50 p-3 transition-colors duration-200 hover:bg-civic-50">
                       <it.icon className="mt-0.5 h-4 w-4 shrink-0 text-civic-700" aria-hidden="true" />
                       <div>
                         <p className="text-sm font-semibold text-ink-900">{it.label}</p>
@@ -136,20 +139,20 @@ export default function About() {
                 </div>
               </div>
               {li < layers.length - 1 && <div className="mx-auto h-4 w-px bg-ink-300" aria-hidden="true" />}
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      <div className="mt-16 rounded-2xl border border-ink-300/60 bg-white p-6">
+      <Reveal variant="scale" className="mt-16 rounded-2xl border border-ink-300/60 bg-white p-6">
         <h3 className="font-display text-base font-semibold text-ink-900">{mockMode ? 'Running in demo mode' : 'Connected to the CityLens server'}</h3>
         <p className="mt-2 text-sm leading-relaxed text-ink-500">
           {mockMode
             ? 'This copy uses simulated detection and stores complaints in your browser, so the complete experience can be shown without the server. Every simulated result is labelled. Location extraction from photos is real.'
             : 'Detections come from the YOLO models running on the FastAPI backend, and complaints are stored on the server.'}
         </p>
-        <Link to="/report" className="mt-4 inline-block text-sm font-medium text-civic-700 hover:underline">Try reporting an issue →</Link>
-      </div>
+        <Link to="/report" className="group mt-4 inline-flex items-center gap-1 text-sm font-medium text-civic-700 hover:underline">Try reporting an issue <span className="transition-transform duration-300 ease-out-expo group-hover:translate-x-1">→</span></Link>
+      </Reveal>
     </div>
   )
 }

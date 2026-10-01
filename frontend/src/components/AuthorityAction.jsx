@@ -22,6 +22,7 @@ export default function AuthorityAction({ complaint, onSubmit }) {
   const [preparing, setPreparing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [shakeKey, setShakeKey] = useState(0) // bump to replay the shake
 
   // Reset the form when the complaint moves to a new status.
   useEffect(() => {
@@ -31,9 +32,9 @@ export default function AuthorityAction({ complaint, onSubmit }) {
 
   if (options.length === 0) {
     return (
-      <div className="rounded-2xl border border-ink-300/60 bg-white p-6">
+      <div className="animate-fade-in rounded-2xl border border-ink-300/60 bg-white p-6">
         <h3 className="flex items-center gap-2 font-display text-base font-semibold text-ink-900">
-          <Lock className="h-4 w-4 text-ink-400" aria-hidden="true" /> Complaint closed
+          <Lock className="h-4 w-4 animate-pop text-ink-400" aria-hidden="true" /> Complaint closed
         </h3>
         <p className="mt-1 text-sm text-ink-500">
           This complaint is {STATUS_META[complaint.status].authority.toLowerCase()}. No further actions can be recorded.
@@ -68,6 +69,7 @@ export default function AuthorityAction({ complaint, onSubmit }) {
       setError(status === 'resolved'
         ? 'Describe the action taken before marking this complaint resolved.'
         : 'Please describe the action taken.')
+      setShakeKey((k) => k + 1)
       return
     }
     setError(null)
@@ -97,7 +99,7 @@ export default function AuthorityAction({ complaint, onSubmit }) {
             id="action-status"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="focus-ring mt-1.5 w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900"
+            className="focus-ring mt-1.5 w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900 transition-[border-color] duration-200 hover:border-ink-400"
           >
             {options.map((s) => <option key={s} value={s}>{STATUS_META[s].authority}</option>)}
             <option value={KEEP}>Keep as “{STATUS_META[complaint.status].authority}” — add a note only</option>
@@ -107,16 +109,16 @@ export default function AuthorityAction({ complaint, onSubmit }) {
         <div>
           <span className="text-sm font-medium text-ink-900">After-action photo <span className="font-normal text-ink-400">(optional)</span></span>
           {after ? (
-            <div className="mt-1.5 flex items-center gap-3 rounded-lg border border-ink-300 p-2">
+            <div className="mt-1.5 flex animate-scale-in items-center gap-3 rounded-lg border border-ink-300 p-2">
               <img src={after.dataUrl} alt="After-action preview" className="h-10 w-10 rounded-md object-cover" />
               <span className="flex-1 truncate text-xs text-ink-500">{after.name}</span>
-              <button type="button" onClick={() => setAfter(null)} className="focus-ring rounded text-ink-400 hover:text-signal-red" aria-label="Remove after-action photo">
+              <button type="button" onClick={() => setAfter(null)} className="focus-ring rounded p-0.5 text-ink-400 transition-colors hover:bg-signal-redLight hover:text-signal-red" aria-label="Remove after-action photo">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ) : (
-            <label className="focus-within:ring-2 focus-within:ring-civic-500 mt-1.5 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2.5 text-sm text-ink-500 hover:border-civic-500">
-              <UploadCloud className="h-4 w-4" aria-hidden="true" /> {preparing ? 'Preparing…' : 'Upload resolution photo'}
+            <label className="focus-within:ring-2 focus-within:ring-civic-500 group mt-1.5 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-ink-300 px-3 py-2.5 text-sm text-ink-500 transition-colors hover:border-civic-500 hover:bg-civic-50 hover:text-civic-700">
+              <UploadCloud className="h-4 w-4 transition-transform duration-300 ease-out-expo group-hover:-translate-y-0.5" aria-hidden="true" /> {preparing ? 'Preparing…' : 'Upload resolution photo'}
               <input type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(e) => { handleAfterImage(e.target.files?.[0]); e.target.value = '' }} />
             </label>
           )}
@@ -135,9 +137,10 @@ export default function AuthorityAction({ complaint, onSubmit }) {
           aria-invalid={Boolean(error)}
           aria-describedby={error ? 'action-error' : undefined}
           placeholder={PLACEHOLDERS[complaint.issue]}
-          className={`focus-ring mt-1.5 w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink-900 placeholder:text-ink-400 ${error ? 'border-signal-red' : 'border-ink-300'}`}
+          key={shakeKey}
+          className={`focus-ring mt-1.5 w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-ink-900 transition-[border-color] duration-200 placeholder:text-ink-400 ${error ? 'border-signal-red' : 'border-ink-300 hover:border-ink-400'} ${shakeKey ? 'animate-shake' : ''}`}
         />
-        {error && <p id="action-error" className="mt-1.5 text-sm text-signal-red" role="alert">{error}</p>}
+        {error && <p id="action-error" className="mt-1.5 animate-rise text-sm text-signal-red" role="alert">{error}</p>}
       </div>
 
       <Button type="submit" className="mt-5" loading={saving}>

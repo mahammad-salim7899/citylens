@@ -11,7 +11,10 @@ export default function SeverityBadge({ severity, size = 'md' }) {
   const pad = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'
   return (
     <span className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full font-semibold ${pad} ${styles[severity] || 'bg-ink-100 text-ink-700'}`}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+      <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+        {severity === 'High' && <span className="absolute inset-0 animate-ping rounded-full bg-current opacity-50 [animation-duration:2.4s]" />}
+        <span className="relative h-1.5 w-1.5 rounded-full bg-current" />
+      </span>
       {severity} severity
     </span>
   )

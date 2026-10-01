@@ -5,7 +5,7 @@ import { FlaskConical } from 'lucide-react'
 // that YOLO analyzed an image when it didn't.
 export default function DemoNotice({ children, className = '' }) {
   return (
-    <div className={`flex items-start gap-2.5 rounded-xl border border-signal-amber/25 bg-signal-amberLight/60 px-4 py-3 text-sm text-ink-700 ${className}`}>
+    <div className={`flex animate-rise items-start gap-2.5 rounded-xl border border-signal-amber/25 bg-signal-amberLight/60 px-4 py-3 text-sm text-ink-700 ${className}`}>
       <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-signal-amber" aria-hidden="true" />
       <p>
         {children || (

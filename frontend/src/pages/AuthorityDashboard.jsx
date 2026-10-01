@@ -5,6 +5,7 @@ import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import MapView from '../components/MapView'
 import { LoadingState, ErrorState } from '../components/PageState'
+import { CountUp } from '../components/Motion'
 import { useAuth } from '../context/AuthContext'
 import { listAuthorityComplaints } from '../services/complaintService'
 import { departmentName } from '../config/departments'
@@ -51,14 +52,14 @@ function Dashboard({ account, onSignOut }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex animate-rise flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-civic-600">Authority portal</p>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">{departmentName(account.department)}</h1>
           <p className="mt-1 text-ink-500">Signed in as {account.name} · {account.designation}</p>
         </div>
         <button type="button" onClick={onSignOut}
-          className="focus-ring flex items-center gap-1.5 rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm font-medium text-ink-600 hover:border-civic-500 hover:text-civic-700">
+          className="focus-ring flex items-center gap-1.5 rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm font-medium text-ink-600 transition-colors hover:border-civic-500 hover:text-civic-700">
           <LogOut className="h-4 w-4" aria-hidden="true" /> Switch account
         </button>
       </div>
@@ -66,28 +67,29 @@ function Dashboard({ account, onSignOut }) {
       {loading ? <LoadingState label="Loading assigned complaints…" /> : error ? <ErrorState message={error} onRetry={reload} /> : (
         <>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {stats.map((s) => (
+            {stats.map((s, i) => (
               <button key={s.label} type="button" onClick={() => setFilter(s.filter)} aria-pressed={filter === s.filter}
-                className={`focus-ring rounded-2xl border bg-white p-4 text-left transition-shadow hover:shadow-card ${filter === s.filter ? 'border-civic-500 ring-1 ring-civic-500' : 'border-ink-300/60'}`}>
-                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${s.color}`}>
+                style={{ '--d': `${i * 60}ms` }}
+                className={`focus-ring group animate-rise rounded-2xl border bg-white p-4 text-left transition-[transform,box-shadow,border-color] duration-300 ease-out-expo hover:-translate-y-0.5 hover:shadow-card active:scale-[0.98] ${filter === s.filter ? 'border-civic-500 shadow-card ring-1 ring-civic-500' : 'border-ink-300/60'}`}>
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg transition-transform duration-300 ease-out-expo group-hover:scale-110 ${s.color}`}>
                   <s.icon className="h-4 w-4" strokeWidth={2.25} aria-hidden="true" />
                 </span>
-                <p className="mt-3 font-display text-2xl font-bold text-ink-900">{s.value}</p>
+                <p className="mt-3 font-display text-2xl font-bold text-ink-900"><CountUp value={s.value} /></p>
                 <p className="text-xs text-ink-500 sm:text-sm">{s.label}</p>
               </button>
             ))}
           </div>
 
-          <div className="mt-8 overflow-hidden rounded-2xl border border-ink-300/60 bg-white">
+          <div className="mt-8 animate-rise overflow-hidden rounded-2xl border border-ink-300/60 bg-white" style={{ '--d': '300ms' }}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 px-5 py-4">
-              <h2 className="font-display text-base font-semibold text-ink-900">
+              <h2 key={filter} className="animate-fade-in font-display text-base font-semibold text-ink-900">
                 {filter === 'all' ? 'Assigned complaints' : FILTERS.find((f) => f.id === filter).label}
               </h2>
               <span className="text-xs text-ink-400">{visible.length} shown · open and high severity first</span>
             </div>
 
             {visible.length === 0 ? (
-              <p className="p-10 text-center text-sm text-ink-500">
+              <p key={filter} className="animate-fade-in p-10 text-center text-sm text-ink-500">
                 {complaints.length === 0 ? 'No complaints assigned to this department yet.' : 'No complaints match this filter.'}
               </p>
             ) : (
@@ -102,13 +104,14 @@ function Dashboard({ account, onSignOut }) {
                       <th scope="col" className="px-5 py-3 font-medium">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {visible.map((c) => (
+                  <tbody key={filter}>
+                    {visible.map((c, i) => (
                       <tr key={c.id} onClick={() => navigate(`/authority/complaints/${c.id}`)}
-                        className="cursor-pointer border-b border-ink-200 transition-colors last:border-0 hover:bg-civic-50">
+                        style={{ '--d': `${Math.min(i, 10) * 45}ms` }}
+                        className="group animate-fade-in cursor-pointer border-b border-ink-200 transition-colors last:border-0 hover:bg-civic-50">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <img src={c.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg bg-ink-100 object-cover" />
+                            <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-ink-100"><img src={c.image_url} alt="" className="h-full w-full object-cover transition-transform duration-500 ease-out-expo group-hover:scale-110" /></span>
                             <div>
                               <Link to={`/authority/complaints/${c.id}`} onClick={(e) => e.stopPropagation()} className="focus-ring whitespace-nowrap rounded font-semibold text-ink-900 hover:text-civic-700">{c.id}</Link>
                               <p className="whitespace-nowrap text-xs text-ink-400">{formatDateTime(c.created_at)}</p>
@@ -127,7 +130,7 @@ function Dashboard({ account, onSignOut }) {
             )}
           </div>
 
-          <div className="mt-8 rounded-2xl border border-ink-300/60 bg-white p-5">
+          <div className="mt-8 animate-rise rounded-2xl border border-ink-300/60 bg-white p-5" style={{ '--d': '380ms' }}>
             <h2 className="font-display text-base font-semibold text-ink-900">Complaint map</h2>
             <p className="mt-0.5 text-sm text-ink-500">Every pin is placed at the GPS position stored with the complaint.</p>
             <div className="mt-4">

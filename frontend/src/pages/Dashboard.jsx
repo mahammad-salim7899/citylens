@@ -5,6 +5,7 @@ import Button from '../components/Button'
 import ComplaintCard from '../components/ComplaintCard'
 import MapView from '../components/MapView'
 import { LoadingState, ErrorState } from '../components/PageState'
+import { CountUp } from '../components/Motion'
 import { listComplaints } from '../services/complaintService'
 import { useLoader } from '../lib/useLoader'
 
@@ -24,7 +25,7 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex animate-rise flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink-900">Your reports</h1>
           <p className="mt-1 text-ink-500">Track every civic issue you've reported through CityLens.</p>
@@ -35,19 +36,20 @@ export default function Dashboard() {
       {loading ? <LoadingState label="Loading your reports…" /> : error ? <ErrorState message={error} onRetry={reload} /> : (
         <>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            {stats.map((s) => (
-              <div key={s.label} className="rounded-2xl border border-ink-300/60 bg-white p-5">
-                <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${s.color}`}>
+            {stats.map((s, i) => (
+              <div key={s.label} style={{ '--d': `${i * 70}ms` }}
+                className="group animate-rise rounded-2xl border border-ink-300/60 bg-white p-5 transition-[transform,box-shadow] duration-300 ease-out-expo hover:-translate-y-0.5 hover:shadow-card">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-lg transition-transform duration-300 ease-out-expo group-hover:scale-110 ${s.color}`}>
                   <s.icon className="h-4.5 w-4.5" strokeWidth={2.25} aria-hidden="true" />
                 </span>
-                <p className="mt-3 font-display text-2xl font-bold text-ink-900">{s.value}</p>
+                <p className="mt-3 font-display text-2xl font-bold text-ink-900"><CountUp value={s.value} /></p>
                 <p className="text-sm text-ink-500">{s.label}</p>
               </div>
             ))}
           </div>
 
           <div className="mt-10 grid gap-8 lg:grid-cols-5">
-            <div className="lg:col-span-3">
+            <div className="min-w-0 animate-rise lg:col-span-3" style={{ '--d': '220ms' }}>
               <h2 className="font-display text-lg font-semibold text-ink-900">Recent complaints</h2>
               {complaints.length === 0 ? (
                 <div className="mt-4 rounded-2xl border border-dashed border-ink-300 bg-white p-10 text-center text-sm text-ink-500">
@@ -56,11 +58,15 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-4 space-y-3">
-                  {complaints.map((c) => <ComplaintCard key={c.id} complaint={c} />)}
+                  {complaints.map((c, i) => (
+                    <div key={c.id} className="animate-rise" style={{ '--d': `${300 + Math.min(i, 8) * 60}ms` }}>
+                      <ComplaintCard complaint={c} />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-            <div className="lg:col-span-2">
+            <div className="min-w-0 animate-rise lg:col-span-2" style={{ '--d': '300ms' }}>
               <h2 className="font-display text-lg font-semibold text-ink-900">On the map</h2>
               <div className="mt-4">
                 <MapView complaints={complaints} height="h-80" linkFor={(c) => `/track/${c.id}`} showLegend />

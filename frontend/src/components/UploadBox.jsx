@@ -32,18 +32,24 @@ export default function UploadBox({ onFileSelected, onError }) {
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
+      // Ignore dragleave events fired when moving between child elements.
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false) }}
       onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files) }}
-      className={`flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors sm:py-14 ${
-        dragOver ? 'border-civic-600 bg-civic-50' : 'border-ink-300 bg-white'
+      className={`group flex animate-scale-in flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-[border-color,background-color,box-shadow] duration-300 sm:py-14 ${
+        dragOver ? 'border-civic-600 bg-civic-50 shadow-[0_0_0_6px_rgba(53,72,180,0.08)]' : 'border-ink-300 bg-white hover:border-civic-300'
       }`}
+      style={{ '--d': '80ms' }}
     >
-      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-civic-100 text-civic-700">
-        <ImageUp className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+      <div className="relative">
+        {/* A slow halo that grows while a file is dragged over. */}
+        <span className={`absolute inset-0 rounded-full bg-civic-200 transition-[transform,opacity] duration-500 ease-out-expo ${dragOver ? 'scale-[1.6] opacity-60' : 'scale-100 opacity-0'}`} aria-hidden="true" />
+        <div className={`relative flex h-14 w-14 items-center justify-center rounded-full bg-civic-100 text-civic-700 transition-transform duration-500 ease-out-expo ${dragOver ? '-translate-y-1.5 scale-110' : 'animate-float'}`}>
+          <ImageUp className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+        </div>
       </div>
       <p className="mt-4 font-display text-base font-semibold text-ink-900">
         <span className="sm:hidden">Take or choose a photo</span>
-        <span className="hidden sm:inline">Drag and drop a photo here</span>
+        <span className="hidden sm:inline">{dragOver ? 'Drop it — we’ll take it from here' : 'Drag and drop a photo here'}</span>
       </p>
       <p className="mt-1 text-sm text-ink-500">JPG, JPEG or PNG · up to 15 MB</p>
 

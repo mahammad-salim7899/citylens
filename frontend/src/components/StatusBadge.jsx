@@ -12,7 +12,7 @@ const tones = {
 export default function StatusBadge({ status, audience = 'citizen' }) {
   const tone = tones[STATUS_META[status]?.tone] || 'bg-ink-100 text-ink-700'
   return (
-    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${tone}`}>
+    <span className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold transition-colors duration-300 ${tone}`}>
       {statusLabel(status, audience)}
     </span>
   )

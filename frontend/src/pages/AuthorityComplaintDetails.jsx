@@ -41,7 +41,7 @@ function Details({ id }) {
   const [showBoxes, setShowBoxes] = useState(true)
   const { data: complaint, loading, error, reload } = useLoader(() => getAuthorityComplaint(id), [id])
 
-  if (loading) return <LoadingState label="Loading complaint…" />
+  if (loading) return <LoadingState variant="detail" label="Loading complaint…" />
   if (error) return <ErrorState message={error} onRetry={reload} />
   if (!complaint) {
     return (
@@ -69,18 +69,18 @@ function Details({ id }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-      <Link to="/authority" className="focus-ring inline-flex items-center gap-1.5 rounded text-sm font-medium text-ink-500 hover:text-ink-900">
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to dashboard
+      <Link to="/authority" className="focus-ring group inline-flex animate-fade-in items-center gap-1.5 rounded text-sm font-medium text-ink-500 transition-colors hover:text-ink-900">
+        <ArrowLeft className="h-4 w-4 transition-transform duration-300 ease-out-expo group-hover:-translate-x-1" aria-hidden="true" /> Back to dashboard
       </Link>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex animate-rise flex-wrap items-center gap-3" style={{ '--d': '40ms' }}>
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">{complaint.id}</h1>
         <StatusBadge status={complaint.status} audience="authority" />
         <SeverityBadge severity={complaint.severity} size="sm" />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
+        <div className="space-y-6 lg:col-span-3 [&>*]:animate-rise [&>*]:[--d:120ms] [&>*:nth-child(2)]:[--d:200ms] [&>*:nth-child(3)]:[--d:280ms] [&>*:nth-child(4)]:[--d:360ms]">
           <Section title="Complaint information">
             <dl className="grid gap-4 sm:grid-cols-2">
               <Field label="Complaint ID">{complaint.id}</Field>
@@ -100,7 +100,7 @@ function Details({ id }) {
             title="Evidence"
             action={det.detections?.length > 0 && (
               <button type="button" onClick={() => setShowBoxes((v) => !v)} aria-pressed={showBoxes}
-                className="focus-ring flex items-center gap-1.5 rounded text-xs font-medium text-ink-500 hover:text-ink-900">
+                className="focus-ring flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-900">
                 {showBoxes ? <EyeOff className="h-3.5 w-3.5" aria-hidden="true" /> : <Eye className="h-3.5 w-3.5" aria-hidden="true" />}
                 {showBoxes ? 'Hide boxes' : 'Show boxes'}
               </button>
@@ -119,7 +119,7 @@ function Details({ id }) {
               {complaint.after_image_url && (
                 <figure>
                   <figcaption className="mb-2 text-xs font-medium uppercase tracking-wide text-signal-green">After · resolution evidence</figcaption>
-                  <img src={complaint.after_image_url} alt="After action" className="max-h-80 w-full rounded-xl bg-ink-100 object-cover" />
+                  <img src={complaint.after_image_url} alt="After action" className="max-h-80 w-full animate-fade-in rounded-xl bg-ink-100 object-cover" />
                 </figure>
               )}
             </div>
@@ -156,8 +156,8 @@ function Details({ id }) {
             title="Location"
             action={
               <a href={`https://www.google.com/maps/search/?api=1&query=${complaint.latitude},${complaint.longitude}`} target="_blank" rel="noreferrer"
-                className="focus-ring flex items-center gap-1 rounded text-xs font-medium text-civic-700 hover:underline">
-                Open in Google Maps <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                className="focus-ring group flex items-center gap-1 rounded text-xs font-medium text-civic-700 hover:underline">
+                Open in Google Maps <ExternalLink className="h-3 w-3 transition-transform duration-300 ease-out-expo group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
               </a>
             }
           >
@@ -173,7 +173,7 @@ function Details({ id }) {
           <AuthorityAction complaint={complaint} onSubmit={handleAction} />
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="animate-rise lg:col-span-2" style={{ '--d': '200ms' }}>
           <div className="lg:sticky lg:top-24"><StatusTimeline complaint={complaint} audience="authority" /></div>
         </div>
       </div>

@@ -9,13 +9,14 @@ import { issueLabel } from '../config/issueTypes'
 
 const issueFor = (dept) => Object.keys(ISSUE_ROUTING).find((k) => ISSUE_ROUTING[k] === dept)
 
-const field = 'focus-ring mt-1 w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400'
+const field = 'focus-ring mt-1 w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 transition-[border-color,box-shadow] duration-200 placeholder:text-ink-400 hover:border-ink-400 focus-visible:border-civic-500'
 
 export default function AuthoritySignIn({ onSignedIn }) {
   const { signIn, signInDemoAuthority, mockMode } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [shakeKey, setShakeKey] = useState(0)
 
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -30,11 +31,13 @@ export default function AuthoritySignIn({ onSignedIn }) {
       // portal they have no access to.
       if (user.role !== 'officer') {
         setError('That is a citizen account. Use the citizen sign-in on the left.')
+        setShakeKey((k) => k + 1)
         return
       }
       onSignedIn(user)
     } catch (err) {
       setError(err.message)
+      setShakeKey((k) => k + 1)
     } finally {
       setBusy(false)
     }
@@ -53,7 +56,7 @@ export default function AuthoritySignIn({ onSignedIn }) {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-14 sm:px-6 sm:py-20">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-civic-800 text-white">
+      <span className="flex h-11 w-11 animate-pop items-center justify-center rounded-xl bg-civic-800 text-white" style={{ '--d': '220ms' }}>
         <ShieldCheck className="h-5 w-5" aria-hidden="true" />
       </span>
       <h1 className="mt-5 font-display text-3xl font-bold tracking-tight text-ink-900">Authority sign in</h1>
@@ -64,7 +67,7 @@ export default function AuthoritySignIn({ onSignedIn }) {
         Officer accounts are created by the administrator — there is no self sign-up.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+      <form key={shakeKey} onSubmit={handleSubmit} className={`mt-7 space-y-4 ${shakeKey ? 'animate-shake' : ''}`}>
         <div>
           <label htmlFor="officer-email" className="text-sm font-medium text-ink-700">Official email</label>
           <input id="officer-email" type="email" className={field} value={form.email} onChange={update('email')}
@@ -77,7 +80,7 @@ export default function AuthoritySignIn({ onSignedIn }) {
         </div>
 
         {error && (
-          <p role="alert" className="rounded-xl bg-signal-redLight px-3.5 py-2.5 text-sm text-signal-red">{error}</p>
+          <p role="alert" className="animate-rise rounded-xl bg-signal-redLight px-3.5 py-2.5 text-sm text-signal-red">{error}</p>
         )}
 
         <Button type="submit" variant="secondary" icon={ShieldCheck} disabled={busy} className="w-full justify-center">
@@ -92,14 +95,15 @@ export default function AuthoritySignIn({ onSignedIn }) {
             and the password <span className="font-medium text-ink-600">{DEMO_CREDENTIALS.officerPassword}</span>.
           </p>
           <div className="mt-4 space-y-3">
-            {demoAccounts.map((a) => {
+            {demoAccounts.map((a, i) => {
               const issue = issueFor(a.department)
               return (
                 <button
                   key={a.id}
+                  style={{ '--d': `${320 + i * 80}ms` }}
                   type="button"
                   onClick={() => handleDemo(a.id)}
-                  className="focus-ring group flex w-full items-center gap-4 rounded-2xl border border-ink-300/60 bg-white p-4 text-left transition-shadow hover:shadow-card"
+                  className="focus-ring group flex w-full animate-rise items-center gap-4 rounded-2xl border border-ink-300/60 bg-white p-4 text-left transition-[transform,box-shadow,border-color] duration-300 ease-out-expo hover:-translate-y-0.5 hover:border-civic-200 hover:shadow-card active:scale-[0.99]"
                 >
                   <IssueIcon issue={issue} />
                   <div className="min-w-0 flex-1">
@@ -107,7 +111,7 @@ export default function AuthoritySignIn({ onSignedIn }) {
                     <p className="truncate text-xs text-ink-500">{departmentName(a.department)}</p>
                     <p className="mt-0.5 text-xs text-ink-400">Handles: {issueLabel(issue)}</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-ink-300 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  <ChevronRight className="h-4 w-4 text-ink-300 transition-[transform,color] duration-300 ease-out-expo group-hover:translate-x-1 group-hover:text-civic-600" aria-hidden="true" />
                 </button>
               )
             })}
