@@ -1,19 +1,16 @@
 import React, { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, MapPin, ExternalLink, ShieldAlert, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, MapPin, ExternalLink, Eye, EyeOff } from 'lucide-react'
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import MapView from '../components/MapView'
 import AuthorityAction from '../components/AuthorityAction'
 import StatusTimeline from '../components/StatusTimeline'
 import DetectionOverlay from '../components/DetectionOverlay'
-import AuthoritySignIn from '../components/AuthoritySignIn'
 import { useToast } from '../components/Toast'
 import { LoadingState, ErrorState } from '../components/PageState'
 import { issueLabel } from '../config/issueTypes'
-import { departmentName } from '../config/departments'
 import { STATUS_META } from '../config/statuses'
-import { getCurrentAuthority } from '../services/authService'
 import { getAuthorityComplaint, updateComplaint } from '../services/complaintService'
 import { useLoader } from '../lib/useLoader'
 import { formatDateTime, percent } from '../lib/format'
@@ -39,7 +36,7 @@ function Field({ label, children, wide }) {
   )
 }
 
-function Details({ id, account }) {
+function Details({ id }) {
   const toast = useToast()
   const [showBoxes, setShowBoxes] = useState(true)
   const { data: complaint, loading, error, reload } = useLoader(() => getAuthorityComplaint(id), [id])
@@ -54,22 +51,16 @@ function Details({ id, account }) {
       </div>
     )
   }
-  if (complaint.department !== account.department) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <ShieldAlert className="mx-auto h-9 w-9 text-signal-amber" aria-hidden="true" />
-        <h1 className="mt-3 font-display text-xl font-semibold text-ink-900">Not assigned to your department</h1>
-        <p className="mt-2 text-sm text-ink-500">{complaint.id} is handled by the {departmentName(complaint.department)}.</p>
-        <Link to="/authority" className="mt-4 inline-block text-sm font-medium text-civic-700 hover:underline">Back to dashboard</Link>
-      </div>
-    )
-  }
-
+  // No department check here any more: the server refuses to return
+  // another department's complaint at all, and mock mode does the same,
+  // so reaching this point means it is ours. (`error` above carries the
+  // "belongs to another department" message in both modes.)
   const det = complaint.detection || {}
   const primary = det.detections?.[0]
 
   const handleAction = async ({ status, note, afterImageDataUrl }) => {
-    await updateComplaint(complaint.id, { status, note, afterImageDataUrl, officer: account.name, department: account.department })
+    // No officer or department passed: the server reads both from the token.
+    await updateComplaint(complaint.id, { status, note, afterImageDataUrl })
     toast.show(
       status === complaint.status ? 'Note added to the complaint.' : `Complaint marked as ${STATUS_META[status].authority}. The citizen can now see this update.`,
       'success'
@@ -191,8 +182,7 @@ function Details({ id, account }) {
 }
 
 export default function AuthorityComplaintDetails() {
+  // RequireAuth guarantees a signed-in officer by the time we render.
   const { id } = useParams()
-  const [account, setAccount] = useState(getCurrentAuthority)
-  if (!account) return <AuthoritySignIn onSignedIn={setAccount} />
-  return <Details id={id} account={account} />
+  return <Details id={id} />
 }

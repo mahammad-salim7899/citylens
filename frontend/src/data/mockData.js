@@ -20,13 +20,28 @@ export const SAMPLE_IMAGES = {
   parkingAfter: '/samples/parking-after.svg',
 }
 
-// Mock authority accounts — replaced by real login + role checks
-// once the backend has authentication.
+// Demo accounts for MOCK MODE. In REAL MODE these are ignored entirely:
+// citizens register themselves and officers are seeded in the backend
+// database (see backend/README.md). The emails and passwords below match
+// the backend's seeds so the same credentials work in both modes.
+export const MOCK_PASSWORD = 'citylens-demo'
+
 export const AUTHORITY_ACCOUNTS = [
-  { id: 'auth-sanitation', name: 'Ravi Shenoy', designation: 'Health Inspector', department: 'sanitation' },
-  { id: 'auth-roads', name: 'Anitha Kamath', designation: 'Assistant Executive Engineer', department: 'roads' },
-  { id: 'auth-traffic', name: 'Divya Poojary', designation: 'Traffic Sub-Inspector', department: 'traffic' },
+  { id: 'auth-sanitation', email: 'ravi.shenoy@citylens.local', name: 'Ravi Shenoy', designation: 'Health Inspector', department: 'sanitation', role: 'officer' },
+  { id: 'auth-roads', email: 'anitha.kamath@citylens.local', name: 'Anitha Kamath', designation: 'Assistant Executive Engineer', department: 'roads', role: 'officer' },
+  { id: 'auth-traffic', email: 'divya.poojary@citylens.local', name: 'Divya Poojary', designation: 'Traffic Sub-Inspector', department: 'traffic', role: 'officer' },
 ]
+
+// The citizen who "filed" the sample complaints below, so the demo
+// dashboard isn't empty on a fresh browser.
+export const DEMO_CITIZEN = {
+  id: 'citizen-demo',
+  email: 'demo@citylens.local',
+  name: 'Priya Rao',
+  role: 'citizen',
+  department: null,
+  designation: null,
+}
 
 const det = (issue, confidence, bbox, extra = {}) => ({
   ai_issue: issue,
@@ -41,7 +56,11 @@ const det = (issue, confidence, bbox, extra = {}) => ({
 
 const h = (status, at, by, department, note, kind = 'status') => ({ status, at, by, department, note, kind })
 
-export const MOCK_COMPLAINTS = [
+// Every sample complaint belongs to the demo citizen, so "my complaints"
+// can filter by owner exactly the way the real backend does.
+const ownedByDemoCitizen = (list) => list.map((c) => ({ user_id: DEMO_CITIZEN.id, ...c }))
+
+export const MOCK_COMPLAINTS = ownedByDemoCitizen([
   {
     id: 'CL-2026-00122',
     issue: 'garbage_dumping',
@@ -182,4 +201,4 @@ export const MOCK_COMPLAINTS = [
       h('action_assigned', '2026-09-09T10:00:00+05:30', 'Divya Poojary', 'traffic', 'Patrol team asked to check during evening peak.'),
     ],
   },
-]
+])

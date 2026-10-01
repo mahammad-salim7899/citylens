@@ -2,22 +2,28 @@
 // complaintService.js
 //
 // REAL MODE endpoints (backend/app/main.py):
-//   POST  /api/complaints                              create (multipart)
-//   GET   /api/complaints                              citizen's complaints
-//   GET   /api/complaints/{id}                         track one
-//   GET   /api/authority/complaints?department=…       department queue
+//   POST  /api/complaints                         create (multipart)
+//   GET   /api/complaints                         the signed-in citizen's complaints
+//   GET   /api/complaints/{id}                    track one (own only)
+//   GET   /api/authority/complaints               the officer's own department queue
 //   GET   /api/authority/complaints/{id}
-//   PATCH /api/authority/complaints/{id}/status        change status
-//   POST  /api/authority/complaints/{id}/action        add action note
-//   POST  /api/authority/complaints/{id}/evidence      after-action photo
+//   PATCH /api/authority/complaints/{id}/status   change status
+//   POST  /api/authority/complaints/{id}/action   add action note
+//   POST  /api/authority/complaints/{id}/evidence after-action photo
+//
+// None of these take an owner, a department or an officer name any more:
+// the backend reads all three from the JWT. Passing them would be
+// pointless at best and a spoofing hole at worst.
 //
 // MOCK MODE keeps complaints in this browser's localStorage so the
 // citizen → authority → citizen loop can be demonstrated without a
 // server (open the citizen and authority views in two tabs — they
-// stay in sync).
+// stay in sync). It applies the same ownership and department rules
+// locally, so the demo behaves like the real thing.
 // ─────────────────────────────────────────────────────────────
 
 import { MOCK_MODE, apiGet, apiPatch, apiPostForm, apiPostJson, assetUrl, wait } from './api'
+import { getCurrentUser } from './authService'
 import { MOCK_COMPLAINTS } from '../data/mockData'
 import { departmentFor, departmentName } from '../config/departments'
 import { allowedNextStatuses, NOTE_REQUIRED, STATUS_META } from '../config/statuses'
@@ -91,10 +97,12 @@ function validateUpdate(complaint, { status, note }) {
 
 // ── Public API ───────────────────────────────────────────────────
 
-/** Citizen's complaints (the prototype has a single citizen). */
+/** The signed-in citizen's own complaints. */
 export async function listComplaints() {
   if (!MOCK_MODE) return (await apiGet('/api/complaints')).map(withUrls)
-  return loadMock()
+  const me = getCurrentUser()
+  if (!me) return []
+  return loadMock().filter((c) => c.user_id === me.id)
 }
 
 export async function getComplaint(id) {
@@ -104,13 +112,20 @@ export async function getComplaint(id) {
       throw e
     }
   }
-  return loadMock().find((c) => c.id === id) || null
+  const me = getCurrentUser()
+  // Same as the backend: someone else's complaint is reported as missing
+  // rather than forbidden, so IDs can't be probed.
+  const found = loadMock().find((c) => c.id === id)
+  return found && me && found.user_id === me.id ? found : null
 }
 
+/**
+ * The officer's department queue.
+ * @param {string} [departmentId] MOCK MODE only — in real mode the server
+ *   decides from the token and this argument is ignored.
+ */
 export async function listAuthorityComplaints(departmentId) {
-  if (!MOCK_MODE) {
-    return (await apiGet(`/api/authority/complaints?department=${encodeURIComponent(departmentId)}`)).map(withUrls)
-  }
+  if (!MOCK_MODE) return (await apiGet('/api/authority/complaints')).map(withUrls)
   return loadMock().filter((c) => c.department === departmentId)
 }
 
@@ -121,7 +136,16 @@ export async function getAuthorityComplaint(id) {
       throw e
     }
   }
-  return loadMock().find((c) => c.id === id) || null
+  const me = getCurrentUser()
+  const found = loadMock().find((c) => c.id === id)
+  if (!found) return null
+  // Mirror the backend's department check — and its wording, so both modes
+  // show the same message — so the demo can't read another department's
+  // complaint either.
+  if (!me || found.department !== me.department) {
+    throw new Error('This complaint belongs to another department.')
+  }
+  return found
 }
 
 /**
@@ -170,11 +194,14 @@ export async function createComplaint(p) {
   }
 
   await wait(500)
+  const me = getCurrentUser()
+  if (!me) throw new Error('Please sign in to submit a complaint.')
   const list = loadMock()
   const now = new Date().toISOString()
   const department = departmentFor(p.issue)
   const complaint = {
     id: nextComplaintId(list),
+    user_id: me.id,
     ...data,
     confidence: data.detection.corrected_by_citizen ? null : data.detection.ai_confidence,
     image_url: p.image.dataUrl,
@@ -183,7 +210,7 @@ export async function createComplaint(p) {
     status: 'new',
     created_at: now,
     history: [
-      { status: 'new', at: now, by: 'Citizen', department: null, note: 'Complaint submitted.', kind: 'submitted' },
+      { status: 'new', at: now, by: me.name, department: null, note: 'Complaint submitted.', kind: 'submitted' },
       { status: 'new', at: now, by: 'CityLens', department, note: `Routed to ${departmentName(department)}.`, kind: 'routed' },
     ],
   }
@@ -194,8 +221,13 @@ export async function createComplaint(p) {
 
 /**
  * Authority update. `status` equal to the current status = add a note only.
+ *
+ * The officer's name and department are NOT sent: the backend takes them
+ * from the token. Anything this function recorded about who acted would
+ * be the client's word for it.
+ *
  * @param {string} id
- * @param {{status:string, note:string, officer:string, department:string, afterImageDataUrl?:string}} u
+ * @param {{status:string, note:string, afterImageDataUrl?:string}} u
  */
 export async function updateComplaint(id, u) {
   if (!MOCK_MODE) {
@@ -205,11 +237,9 @@ export async function updateComplaint(id, u) {
     if (u.afterImageDataUrl) {
       const form = new FormData()
       form.append('image', await dataUrlToBlob(u.afterImageDataUrl), 'after.jpg')
-      form.append('officer', u.officer)
-      form.append('department', u.department)
       await apiPostForm(`/api/authority/complaints/${encodeURIComponent(id)}/evidence`, form)
     }
-    const body = { note: u.note?.trim() || null, officer: u.officer, department: u.department }
+    const body = { note: u.note?.trim() || null }
     const updated = u.status === current.status
       ? await apiPostJson(`/api/authority/complaints/${encodeURIComponent(id)}/action`, body)
       : await apiPatch(`/api/authority/complaints/${encodeURIComponent(id)}/status`, { ...body, status: u.status })
@@ -218,23 +248,25 @@ export async function updateComplaint(id, u) {
   }
 
   await wait(350)
+  const officer = getCurrentUser()
+  if (!officer || officer.role !== 'officer') throw new Error('Please sign in as an authority officer.')
   const list = loadMock()
   const current = list.find((c) => c.id === id)
   if (!current) throw new Error('Complaint not found.')
-  if (current.department !== u.department) throw new Error('This complaint belongs to another department.')
+  if (current.department !== officer.department) throw new Error('This complaint belongs to another department.')
   validateUpdate(current, u)
 
   const now = new Date().toISOString()
   const entries = []
   if (u.afterImageDataUrl) {
-    entries.push({ status: current.status, at: now, by: u.officer, department: u.department, note: 'Resolution photo uploaded.', kind: 'evidence' })
+    entries.push({ status: current.status, at: now, by: officer.name, department: officer.department, note: 'Resolution photo uploaded.', kind: 'evidence' })
   }
   const statusChanged = u.status !== current.status
   entries.push({
     status: u.status,
     at: now,
-    by: u.officer,
-    department: u.department,
+    by: officer.name,
+    department: officer.department,
     note: u.note?.trim() || `Status updated to ${STATUS_META[u.status].authority}.`,
     kind: statusChanged ? 'status' : 'action',
   })

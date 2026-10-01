@@ -4,9 +4,8 @@ import { Inbox, Search as SearchIcon, Clock, Wrench, CheckCircle2, AlertOctagon,
 import SeverityBadge from '../components/SeverityBadge'
 import StatusBadge from '../components/StatusBadge'
 import MapView from '../components/MapView'
-import AuthoritySignIn from '../components/AuthoritySignIn'
 import { LoadingState, ErrorState } from '../components/PageState'
-import { getCurrentAuthority, signOutAuthority } from '../services/authService'
+import { useAuth } from '../context/AuthContext'
 import { listAuthorityComplaints } from '../services/complaintService'
 import { departmentName } from '../config/departments'
 import { issueLabel } from '../config/issueTypes'
@@ -142,7 +141,9 @@ function Dashboard({ account, onSignOut }) {
 }
 
 export default function AuthorityDashboard() {
-  const [account, setAccount] = useState(getCurrentAuthority)
-  if (!account) return <AuthoritySignIn onSignedIn={setAccount} />
-  return <Dashboard account={account} onSignOut={() => { signOutAuthority(); setAccount(null) }} />
+  // RequireAuth guarantees a signed-in officer by the time we render.
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const handleSignOut = () => { signOut(); navigate('/login', { replace: true }) }
+  return <Dashboard account={user} onSignOut={handleSignOut} />
 }

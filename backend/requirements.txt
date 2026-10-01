@@ -1,6 +1,7 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
 python-multipart>=0.0.9
+pyjwt>=2.8                # JWT authentication
 ultralytics>=8.1          # YOLO (pulls in torch)
 opencv-python-headless>=4.9
 numpy>=1.24

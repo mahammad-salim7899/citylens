@@ -8,6 +8,7 @@ Values can be overridden with environment variables (see .env.example).
 from __future__ import annotations
 
 import os
+import secrets
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -104,3 +105,65 @@ STATUS_FLOW = ["new", "under_review", "action_assigned", "action_in_progress", "
 ALL_STATUSES = STATUS_FLOW + ["rejected"]
 CLOSED_STATUSES = {"resolved", "rejected"}
 NOTE_REQUIRED = {"resolved", "rejected"}
+
+# ── Authentication ────────────────────────────────────────────────────
+ROLES = ("citizen", "officer")
+
+JWT_ALGORITHM = "HS256"
+JWT_TTL_HOURS = int(os.getenv("CITYLENS_JWT_TTL_HOURS", "12"))
+
+MIN_PASSWORD_LENGTH = 8
+# PBKDF2 iterations. Higher = slower to crack and slower to log in.
+PBKDF2_ROUNDS = int(os.getenv("CITYLENS_PBKDF2_ROUNDS", "240000"))
+
+
+def _resolve_jwt_secret() -> tuple[str, bool]:
+    """(secret, came_from_env).
+
+    In production set CITYLENS_JWT_SECRET. For development we generate a
+    random secret once and keep it in data/.jwt_secret so that restarting
+    uvicorn doesn't sign everyone out. It is deliberately NOT a hardcoded
+    default: a shipped default secret lets anyone forge an officer token.
+    """
+    from_env = os.getenv("CITYLENS_JWT_SECRET", "").strip()
+    if from_env:
+        return from_env, True
+
+    path = DATA_DIR / ".jwt_secret"
+    try:
+        if path.is_file():
+            existing = path.read_text(encoding="utf-8").strip()
+            if existing:
+                return existing, False
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        generated = secrets.token_urlsafe(48)
+        path.write_text(generated, encoding="utf-8")
+        try:
+            path.chmod(0o600)  # best effort; a no-op on most Windows setups
+        except OSError:
+            pass
+        return generated, False
+    except OSError:
+        # Read-only data dir: fall back to a per-process secret. Tokens
+        # then stop working on restart, which is safe, just inconvenient.
+        return secrets.token_urlsafe(48), False
+
+
+JWT_SECRET, JWT_SECRET_FROM_ENV = _resolve_jwt_secret()
+
+# ── Seeded officer accounts ───────────────────────────────────────────
+# Created once, only if the users table is empty. One officer per
+# department so the authority side is demoable immediately. Names match
+# the frontend's demo accounts so screenshots stay consistent.
+SEED_OFFICERS = [
+    {"email": "ravi.shenoy@citylens.local", "name": "Ravi Shenoy",
+     "designation": "Health Inspector", "department": "sanitation"},
+    {"email": "anitha.kamath@citylens.local", "name": "Anitha Kamath",
+     "designation": "Assistant Executive Engineer", "department": "roads"},
+    {"email": "divya.poojary@citylens.local", "name": "Divya Poojary",
+     "designation": "Traffic Sub-Inspector", "department": "traffic"},
+]
+# Demo password for the seeded officers. Override it — and read the
+# warning the server logs at startup if you don't.
+SEED_OFFICER_PASSWORD = os.getenv("CITYLENS_SEED_OFFICER_PASSWORD", "citylens-demo")
+SEED_PASSWORD_IS_DEFAULT = "CITYLENS_SEED_OFFICER_PASSWORD" not in os.environ

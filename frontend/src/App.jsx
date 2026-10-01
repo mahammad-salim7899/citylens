@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Link } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Button from './components/Button'
+import RequireAuth from './components/RequireAuth'
 
 import Home from './pages/Home'
 import About from './pages/About'
@@ -47,17 +48,20 @@ export default function App() {
           <Route path="/about" element={<About />} />
           <Route path="/login" element={<Login />} />
 
-          <Route path="/report" element={<ReportIssue />} />
-          <Route path="/report/analyze" element={<Analysis />} />
-          <Route path="/report/confirm" element={<Confirmation />} />
-          <Route path="/report/success" element={<ComplaintSuccess />} />
+          {/* Citizen pages. Detection, filing and tracking all hit
+              endpoints that require a citizen token. */}
+          <Route path="/report" element={<RequireAuth role="citizen"><ReportIssue /></RequireAuth>} />
+          <Route path="/report/analyze" element={<RequireAuth role="citizen"><Analysis /></RequireAuth>} />
+          <Route path="/report/confirm" element={<RequireAuth role="citizen"><Confirmation /></RequireAuth>} />
+          <Route path="/report/success" element={<RequireAuth role="citizen"><ComplaintSuccess /></RequireAuth>} />
 
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/track" element={<TrackComplaint />} />
-          <Route path="/track/:id" element={<TrackComplaint />} />
+          <Route path="/dashboard" element={<RequireAuth role="citizen"><Dashboard /></RequireAuth>} />
+          <Route path="/track" element={<RequireAuth role="citizen"><TrackComplaint /></RequireAuth>} />
+          <Route path="/track/:id" element={<RequireAuth role="citizen"><TrackComplaint /></RequireAuth>} />
 
-          <Route path="/authority" element={<AuthorityDashboard />} />
-          <Route path="/authority/complaints/:id" element={<AuthorityComplaintDetails />} />
+          {/* Authority pages. */}
+          <Route path="/authority" element={<RequireAuth role="officer"><AuthorityDashboard /></RequireAuth>} />
+          <Route path="/authority/complaints/:id" element={<RequireAuth role="officer"><AuthorityComplaintDetails /></RequireAuth>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

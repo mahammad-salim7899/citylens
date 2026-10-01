@@ -1,20 +1,36 @@
 import React, { useEffect, useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { LogOut, Menu, X } from 'lucide-react'
 import Button from './Button'
 import Logo from './Logo'
+import { useAuth } from '../context/AuthContext'
 
-const links = [
+const CITIZEN_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/report', label: 'Report Issue' },
   { to: '/track', label: 'Track Complaint' },
   { to: '/about', label: 'About' },
 ]
 
+// An officer has no use for the citizen reporting flow.
+const OFFICER_LINKS = [
+  { to: '/', label: 'Home' },
+  { to: '/authority', label: 'Authority Portal' },
+  { to: '/about', label: 'About' },
+]
+
 export default function Navbar() {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const { user, isOfficer, signOut } = useAuth()
   useEffect(() => setOpen(false), [pathname])
+
+  const links = isOfficer ? OFFICER_LINKS : CITIZEN_LINKS
+  const handleSignOut = () => {
+    signOut()
+    navigate('/', { replace: true })
+  }
 
   return (
     <header className="sticky top-0 z-[900] border-b border-ink-300/60 bg-ink-50/90 backdrop-blur-sm">
@@ -41,8 +57,24 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button as={Link} to="/login" variant="ghost" size="sm">Login</Button>
-          <Button as={Link} to="/report" variant="primary" size="sm">Get Started</Button>
+          {user ? (
+            <>
+              <Link
+                to={isOfficer ? '/authority' : '/dashboard'}
+                className="focus-ring max-w-[14rem] truncate rounded-lg px-2 py-2 text-sm text-ink-500 hover:text-ink-900"
+                title={user.email}
+              >
+                <span className="font-medium text-ink-900">{user.name}</span>
+                {isOfficer && <span className="text-ink-400"> · Officer</span>}
+              </Link>
+              <Button onClick={handleSignOut} variant="ghost" size="sm" icon={LogOut}>Sign out</Button>
+            </>
+          ) : (
+            <>
+              <Button as={Link} to="/login" variant="ghost" size="sm">Login</Button>
+              <Button as={Link} to="/report" variant="primary" size="sm">Get Started</Button>
+            </>
+          )}
         </div>
 
         <button
@@ -69,10 +101,20 @@ export default function Navbar() {
                 {l.label}
               </NavLink>
             ))}
-            <div className="mt-2 flex gap-2">
-              <Button as={Link} to="/login" variant="secondary" size="sm" className="flex-1">Login</Button>
-              <Button as={Link} to="/report" variant="primary" size="sm" className="flex-1">Get Started</Button>
-            </div>
+            {user ? (
+              <div className="mt-2 border-t border-ink-200 pt-3">
+                <p className="px-3 text-sm font-medium text-ink-900">{user.name}</p>
+                <p className="truncate px-3 text-xs text-ink-400">{user.email}</p>
+                <Button onClick={handleSignOut} variant="secondary" size="sm" icon={LogOut} className="mt-3 w-full justify-center">
+                  Sign out
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 flex gap-2">
+                <Button as={Link} to="/login" variant="secondary" size="sm" className="flex-1">Login</Button>
+                <Button as={Link} to="/report" variant="primary" size="sm" className="flex-1">Get Started</Button>
+              </div>
+            )}
           </div>
         </nav>
       )}
