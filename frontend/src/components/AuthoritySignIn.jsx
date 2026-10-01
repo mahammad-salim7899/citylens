@@ -3,7 +3,6 @@ import { ChevronRight, ShieldCheck } from 'lucide-react'
 import Button from './Button'
 import IssueIcon from './IssueIcon'
 import { useAuth } from '../context/AuthContext'
-import { MOCK_MODE } from '../services/api'
 import { DEMO_CREDENTIALS, listDemoAuthorityAccounts } from '../services/authService'
 import { departmentName, ISSUE_ROUTING } from '../config/departments'
 import { issueLabel } from '../config/issueTypes'
@@ -13,7 +12,7 @@ const issueFor = (dept) => Object.keys(ISSUE_ROUTING).find((k) => ISSUE_ROUTING[
 const field = 'focus-ring mt-1 w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400'
 
 export default function AuthoritySignIn({ onSignedIn }) {
-  const { signIn, signInDemoAuthority } = useAuth()
+  const { signIn, signInDemoAuthority, mockMode } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -86,7 +85,7 @@ export default function AuthoritySignIn({ onSignedIn }) {
         </Button>
       </form>
 
-      {MOCK_MODE && demoAccounts.length > 0 && (
+      {mockMode && demoAccounts.length > 0 && (
         <div className="mt-8 border-t border-ink-200 pt-6">
           <p className="text-xs text-ink-400">
             Demo (no backend running): pick an officer, or sign in above with any of these emails

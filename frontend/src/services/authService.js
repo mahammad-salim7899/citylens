@@ -15,7 +15,7 @@
 // server-side only — see backend/README.md.
 // ─────────────────────────────────────────────────────────────
 
-import { MOCK_MODE, apiGet, apiPostJson, clearToken, getToken, setToken } from './api'
+import { apiGet, apiPostJson, clearToken, getToken, isMockMode, setToken } from './api'
 import { AUTHORITY_ACCOUNTS, DEMO_CITIZEN, MOCK_PASSWORD } from '../data/mockData'
 
 const USER_KEY = 'citylens_user'          // cached so the first paint isn't a flash of the login page
@@ -92,7 +92,7 @@ function mockSessionUser() {
  * server. Use restoreSession() to confirm it's still valid.
  */
 export function getCurrentUser() {
-  return MOCK_MODE ? mockSessionUser() : (getToken() ? readCachedUser() : null)
+  return isMockMode() ? mockSessionUser() : (getToken() ? readCachedUser() : null)
 }
 
 /**
@@ -101,7 +101,7 @@ export function getCurrentUser() {
  * instead of showing a signed-in UI that fails on first use.
  */
 export async function restoreSession() {
-  if (MOCK_MODE) return mockSessionUser()
+  if (isMockMode()) return mockSessionUser()
   if (!getToken()) return null
   try {
     const user = await apiGet('/api/auth/me')
@@ -118,7 +118,7 @@ export async function restoreSession() {
 
 /** Create a citizen account and sign in. */
 export async function registerCitizen({ name, email, password }) {
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     const session = await apiPostJson('/api/auth/register',
       { name: name.trim(), email: email.trim(), password }, { anonymous: true })
     setToken(session.token)
@@ -148,7 +148,7 @@ export async function registerCitizen({ name, email, password }) {
 
 /** Sign in. Works for citizens and officers — check `role` on the result. */
 export async function signIn({ email, password }) {
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     const session = await apiPostJson('/api/auth/login',
       { email: email.trim(), password }, { anonymous: true })
     setToken(session.token)
@@ -171,7 +171,7 @@ export async function signIn({ email, password }) {
  * such shortcut — use signIn().
  */
 export async function signInDemoAuthority(accountId) {
-  if (!MOCK_MODE) throw new Error('Demo accounts are only available without a backend.')
+  if (!isMockMode()) throw new Error('Demo accounts are only available without a backend.')
   const account = loadMockUsers().find((u) => u.id === accountId)
   if (!account) throw new Error('Unknown demo account.')
   setMockSession(account)
@@ -179,7 +179,7 @@ export async function signInDemoAuthority(accountId) {
 }
 
 export function signOut() {
-  if (MOCK_MODE) setMockSession(null)
+  if (isMockMode()) setMockSession(null)
   else {
     // Nothing to call: the token is stateless, so signing out means
     // forgetting it. A stolen token stays valid until it expires —
@@ -189,4 +189,4 @@ export function signOut() {
   }
 }
 
-export const listDemoAuthorityAccounts = () => (MOCK_MODE ? AUTHORITY_ACCOUNTS : [])
+export const listDemoAuthorityAccounts = () => (isMockMode() ? AUTHORITY_ACCOUNTS : [])

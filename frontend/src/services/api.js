@@ -4,11 +4,23 @@
 //   MOCK MODE  → services use simulated detection + browser storage
 //   REAL MODE  → services call the FastAPI backend (backend/ folder)
 //
-// Switch with an env variable — no code changes:
-//   frontend/.env  →  VITE_API_MODE=real
-//                     VITE_API_BASE_URL=http://localhost:8000
+// The mode is AUTO-DETECTED by default: on startup the app probes
+// GET /api/health. If the backend answers, real mode. If it doesn't
+// (no server, wrong URL, CORS blocked), mock mode — no flag to remember,
+// no stale .env file silently hiding a running backend or the reverse.
 //
-// Components never check the mode; they only call services.
+// VITE_API_MODE overrides the probe when you want to force one mode:
+//   VITE_API_MODE=mock   → always the offline demo, even if a backend
+//                           happens to be running (a guaranteed demo
+//                           with zero network calls)
+//   VITE_API_MODE=real   → always real, with NO fallback — a backend
+//                           problem surfaces as a real error instead of
+//                           silently switching to demo data
+//   (unset)              → auto-detect (the default)
+//
+// Components never check the mode directly; they only call services,
+// which call isMockMode(). It's a function, not a constant, because the
+// answer isn't known until the probe resolves — see detectBackendMode().
 //
 // This file also owns the JWT: every request carries it, and a 401 from
 // the server clears it and announces that the session is gone, which
@@ -16,9 +28,52 @@
 // has to remember to attach it.
 // ─────────────────────────────────────────────────────────────
 
-export const MOCK_MODE = (import.meta.env.VITE_API_MODE || 'mock') !== 'real'
-
 export const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+
+const FORCED = (import.meta.env.VITE_API_MODE || '').trim().toLowerCase() // '', 'mock', 'real'
+
+// Safe default before detection finishes: mock, unless real was forced.
+// (Forcing real with no backend up is meant to fail loudly, not fall
+// back silently.)
+let _mockMode = FORCED !== 'real'
+let _detected = FORCED === 'mock' || FORCED === 'real'
+let _detectPromise = null
+
+/** Current answer. Synchronous — always returns the best guess so far. */
+export function isMockMode() {
+  return _mockMode
+}
+
+/** Has detectBackendMode() finished (or was the mode forced)? */
+export function isModeDetected() {
+  return _detected
+}
+
+/**
+ * Probe the backend once per page load and settle isMockMode(). Safe to
+ * call multiple times — later calls just await the same result. A forced
+ * mode (VITE_API_MODE=mock|real) skips the network call entirely.
+ */
+export function detectBackendMode() {
+  if (_detected) return Promise.resolve(_mockMode)
+  if (_detectPromise) return _detectPromise
+
+  _detectPromise = (async () => {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 1500)
+      const res = await fetch(`${BASE_URL}/api/health`, { signal: controller.signal })
+      clearTimeout(timeout)
+      _mockMode = !res.ok
+    } catch {
+      _mockMode = true // no server, wrong URL, CORS blocked, timed out — treat all the same
+    } finally {
+      _detected = true
+    }
+    return _mockMode
+  })()
+  return _detectPromise
+}
 
 // ── session token ────────────────────────────────────────────────
 const TOKEN_KEY = 'citylens_token'

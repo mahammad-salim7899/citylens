@@ -22,7 +22,7 @@
 // locally, so the demo behaves like the real thing.
 // ─────────────────────────────────────────────────────────────
 
-import { MOCK_MODE, apiGet, apiPatch, apiPostForm, apiPostJson, assetUrl, wait } from './api'
+import { apiGet, apiPatch, apiPostForm, apiPostJson, assetUrl, isMockMode, wait } from './api'
 import { getCurrentUser } from './authService'
 import { MOCK_COMPLAINTS } from '../data/mockData'
 import { departmentFor, departmentName } from '../config/departments'
@@ -99,14 +99,14 @@ function validateUpdate(complaint, { status, note }) {
 
 /** The signed-in citizen's own complaints. */
 export async function listComplaints() {
-  if (!MOCK_MODE) return (await apiGet('/api/complaints')).map(withUrls)
+  if (!isMockMode()) return (await apiGet('/api/complaints')).map(withUrls)
   const me = getCurrentUser()
   if (!me) return []
   return loadMock().filter((c) => c.user_id === me.id)
 }
 
 export async function getComplaint(id) {
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     try { return withUrls(await apiGet(`/api/complaints/${encodeURIComponent(id)}`)) } catch (e) {
       if (/404|not found/i.test(e.message)) return null
       throw e
@@ -125,12 +125,12 @@ export async function getComplaint(id) {
  *   decides from the token and this argument is ignored.
  */
 export async function listAuthorityComplaints(departmentId) {
-  if (!MOCK_MODE) return (await apiGet('/api/authority/complaints')).map(withUrls)
+  if (!isMockMode()) return (await apiGet('/api/authority/complaints')).map(withUrls)
   return loadMock().filter((c) => c.department === departmentId)
 }
 
 export async function getAuthorityComplaint(id) {
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     try { return withUrls(await apiGet(`/api/authority/complaints/${encodeURIComponent(id)}`)) } catch (e) {
       if (/404|not found/i.test(e.message)) return null
       throw e
@@ -184,7 +184,7 @@ export async function createComplaint(p) {
     },
   }
 
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     const form = new FormData()
     form.append('image', await dataUrlToBlob(p.image.dataUrl), p.image.fileName || 'report.jpg')
     form.append('data', JSON.stringify(data))
@@ -230,7 +230,7 @@ export async function createComplaint(p) {
  * @param {{status:string, note:string, afterImageDataUrl?:string}} u
  */
 export async function updateComplaint(id, u) {
-  if (!MOCK_MODE) {
+  if (!isMockMode()) {
     const current = await getAuthorityComplaint(id)
     if (!current) throw new Error('Complaint not found.')
     validateUpdate(current, u)

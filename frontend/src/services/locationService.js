@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import exifr from 'exifr'
-import { MOCK_MODE, apiGet } from './api'
+import { apiGet, isMockMode } from './api'
 
 export async function readExifGps(file) {
   try {
@@ -54,7 +54,7 @@ async function nominatimReverse(latitude, longitude) {
 
 export async function reverseGeocode(latitude, longitude) {
   let result = null
-  if (MOCK_MODE) {
+  if (isMockMode()) {
     result = await nominatimReverse(latitude, longitude)
   } else {
     try {

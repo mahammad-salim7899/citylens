@@ -5,7 +5,7 @@ import {
   Smartphone, Server, Cpu, Route, Database, ShieldCheck, ImageUp, RefreshCw, MapPinned,
 } from 'lucide-react'
 import IssueIcon from '../components/IssueIcon'
-import { MOCK_MODE } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 const flow = [
   { icon: Camera, label: 'Citizen captures an image' },
@@ -66,6 +66,7 @@ const layers = [
 ]
 
 export default function About() {
+  const { mockMode } = useAuth()
   return (
     <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 sm:py-20">
       <p className="text-xs font-semibold uppercase tracking-wide text-civic-600">About the project</p>
@@ -141,9 +142,9 @@ export default function About() {
       </section>
 
       <div className="mt-16 rounded-2xl border border-ink-300/60 bg-white p-6">
-        <h3 className="font-display text-base font-semibold text-ink-900">{MOCK_MODE ? 'Running in demo mode' : 'Connected to the CityLens server'}</h3>
+        <h3 className="font-display text-base font-semibold text-ink-900">{mockMode ? 'Running in demo mode' : 'Connected to the CityLens server'}</h3>
         <p className="mt-2 text-sm leading-relaxed text-ink-500">
-          {MOCK_MODE
+          {mockMode
             ? 'This copy uses simulated detection and stores complaints in your browser, so the complete experience can be shown without the server. Every simulated result is labelled. Location extraction from photos is real.'
             : 'Detections come from the YOLO models running on the FastAPI backend, and complaints are stored on the server.'}
         </p>

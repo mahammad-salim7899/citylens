@@ -4,12 +4,13 @@ import { AlertCircle } from 'lucide-react'
 import AnalysisLoader from '../components/AnalysisLoader'
 import Button from '../components/Button'
 import { detectImage } from '../services/detectionService'
-import { MOCK_MODE } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import { loadDraft, saveDraft } from '../lib/draft'
 
 export default function Analysis() {
   const { state } = useLocation()
   const navigate = useNavigate()
+  const { mockMode } = useAuth()
   const draft = state?.image ? state : loadDraft()
   const [stage, setStage] = useState(1)
   const [error, setError] = useState(null)
@@ -56,7 +57,7 @@ export default function Analysis() {
           </div>
         </div>
       ) : (
-        <AnalysisLoader previewUrl={draft.image.dataUrl} stage={stage} mock={MOCK_MODE} />
+        <AnalysisLoader previewUrl={draft.image.dataUrl} stage={stage} mock={mockMode} />
       )}
     </div>
   )

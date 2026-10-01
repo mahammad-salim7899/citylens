@@ -14,7 +14,7 @@
 //   "Demo mode" notice whenever a result is simulated.
 // ─────────────────────────────────────────────────────────────
 
-import { MOCK_MODE, apiPostForm, wait } from './api'
+import { apiPostForm, isMockMode, wait } from './api'
 import { ISSUE_TYPES, isSupportedIssue, normalizeIssueId } from '../config/issueTypes'
 import { dataUrlToBlob } from '../lib/image'
 
@@ -105,7 +105,7 @@ export async function mockDetectImage({ fileName, width, height }) {
  */
 export async function detectImage(image, location) {
   let raw
-  if (MOCK_MODE) {
+  if (isMockMode()) {
     raw = await mockDetectImage(image)
   } else {
     const form = new FormData()

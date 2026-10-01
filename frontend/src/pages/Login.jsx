@@ -5,7 +5,6 @@ import AuthoritySignIn from '../components/AuthoritySignIn'
 import Button from '../components/Button'
 import { LogoMark } from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
-import { MOCK_MODE } from '../services/api'
 import { DEMO_CREDENTIALS } from '../services/authService'
 
 const field = 'focus-ring mt-1 w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-400'
@@ -13,7 +12,7 @@ const field = 'focus-ring mt-1 w-full rounded-xl border border-ink-300 bg-white 
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signIn, register } = useAuth()
+  const { signIn, register, mockMode } = useAuth()
 
   const [mode, setMode] = useState('signin')   // 'signin' | 'register'
   const [form, setForm] = useState({ name: '', email: '', password: '' })
@@ -96,7 +95,7 @@ export default function Login() {
           </button>
         </p>
 
-        {MOCK_MODE && (
+        {mockMode && (
           <p className="mt-6 rounded-xl border border-dashed border-ink-300 px-3.5 py-2.5 text-xs text-ink-500">
             Demo (no backend running): sign in as <span className="font-medium text-ink-700">{DEMO_CREDENTIALS.citizen.email}</span>{' '}
             with password <span className="font-medium text-ink-700">{DEMO_CREDENTIALS.citizen.password}</span> to see sample reports.

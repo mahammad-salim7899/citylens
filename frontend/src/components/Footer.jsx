@@ -2,12 +2,13 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { RotateCcw } from 'lucide-react'
 import Logo from './Logo'
-import { MOCK_MODE } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import { resetDemoData } from '../services/complaintService'
 import { useToast } from './Toast'
 
 export default function Footer() {
   const toast = useToast()
+  const { mockMode } = useAuth()
 
   const handleReset = async () => {
     await resetDemoData()
@@ -46,7 +47,7 @@ export default function Footer() {
 
         <div className="mt-10 flex flex-col gap-3 border-t border-ink-200 pt-6 text-xs text-ink-400 sm:flex-row sm:items-center sm:justify-between">
           <p>Detecting: Pothole · Illegal Parking · Garbage Dumping</p>
-          {MOCK_MODE ? (
+          {mockMode ? (
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-signal-amberLight px-2 py-0.5 font-semibold text-signal-amber">Demo mode</span>
               <button type="button" onClick={handleReset} className="focus-ring flex items-center gap-1 rounded font-medium text-ink-500 hover:text-civic-700">

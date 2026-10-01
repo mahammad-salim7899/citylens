@@ -1,30 +1,39 @@
 // ─────────────────────────────────────────────────────────────
-// AuthContext — the one source of truth for "who is signed in".
+// AuthContext — the one source of truth for "who is signed in", and for
+// "is there even a backend to sign in to".
 //
-// On startup it confirms the stored session with the backend, so an
-// expired token shows the login page instead of a signed-in UI that
-// fails on its first request. It also listens for the unauthorized event
-// api.js fires when any request comes back 401, which covers a token
-// expiring mid-session.
+// On startup it probes the backend (detectBackendMode) to decide mock vs
+// real, THEN confirms the stored session, so an expired token shows the
+// login page instead of a signed-in UI that fails on its first request.
+// It also listens for the unauthorized event api.js fires when any
+// request comes back 401, which covers a token expiring mid-session.
+//
+// Components read `mockMode` from here (not isMockMode() from api.js
+// directly) so they re-render once the probe settles, instead of being
+// stuck with whatever guess was available at their first render.
 // ─────────────────────────────────────────────────────────────
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { UNAUTHORIZED_EVENT } from '../services/api'
+import { UNAUTHORIZED_EVENT, detectBackendMode, isMockMode } from '../services/api'
 import * as auth from '../services/authService'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => auth.getCurrentUser())
-  // `ready` gates the route guards: until the session is confirmed we
-  // don't know whether to show the page or the login screen.
+  const [mockMode, setMockMode] = useState(() => isMockMode())
+  // `ready` gates the route guards: until the probe + session check are
+  // both done we don't know whether to show the page or the login screen.
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     let active = true
-    auth.restoreSession()
-      .then((confirmed) => { if (active) setUser(confirmed) })
-      .finally(() => { if (active) setReady(true) })
+    ;(async () => {
+      const mock = await detectBackendMode()
+      if (active) setMockMode(mock)
+      const confirmed = await auth.restoreSession()
+      if (active) setUser(confirmed)
+    })().finally(() => { if (active) setReady(true) })
     return () => { active = false }
   }, [])
 
@@ -60,13 +69,14 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     user,
     ready,
+    mockMode,
     isCitizen: user?.role === 'citizen',
     isOfficer: user?.role === 'officer',
     signIn,
     register,
     signInDemoAuthority,
     signOut,
-  }), [user, ready, signIn, register, signInDemoAuthority, signOut])
+  }), [user, ready, mockMode, signIn, register, signInDemoAuthority, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
