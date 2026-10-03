@@ -180,6 +180,8 @@ export async function createComplaint(p) {
       source: p.detection.source,
       model: p.detection.model,
       severity_reason: p.detection.severityReason,
+      signs: p.detection.signs || [],
+      no_parking_sign: p.detection.noParkingSign || null,
       corrected_by_citizen: p.detection.issue !== p.issue,
     },
   }

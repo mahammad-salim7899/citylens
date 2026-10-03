@@ -25,11 +25,26 @@ GARBAGE_MODEL = os.getenv(
     str(BASE_DIR / "models" / "citylens_garbage.pt"),  # = runs/detect/citylens_garbage-2/weights/best.pt
 )
 POTHOLE_MODEL = os.getenv("CITYLENS_POTHOLE_MODEL", str(BASE_DIR / "models" / "citylens_pothole.pt"))
-# Standard COCO-pretrained YOLO. "yolov8n.pt" is downloaded automatically
+# Standard COCO-pretrained YOLO, downloaded automatically
 # by Ultralytics the first time (needs internet once).
-VEHICLE_MODEL = os.getenv("CITYLENS_VEHICLE_MODEL", "yolov8n.pt")
+# yolov8s, not yolov8n: on a top-down street photo the nano model found
+# 3 of ~10 parked cars, the small one 6 (still downloaded automatically).
+VEHICLE_MODEL = os.getenv("CITYLENS_VEHICLE_MODEL", "yolov8s.pt")
+
+# Semantic segmentation of the street (road vs sidewalk) for the Illegal
+# Parking rule. Cityscapes-pretrained SegFormer, downloaded on first run.
+# Set to an empty value to disable.
+SCENE_MODEL = os.getenv("CITYLENS_SCENE_MODEL", "nvidia/segformer-b0-finetuned-cityscapes-1024-1024")
+SCENE_MAX_SIDE = int(os.getenv("CITYLENS_SCENE_SIDE", "640"))   # resolution the scene model runs at
+# A vehicle counts as "on the footpath" when at least this share of its
+# ground contact is sidewalk.
+FOOTPATH_MIN_SHARE = float(os.getenv("CITYLENS_FOOTPATH_SHARE", "0.5"))
 
 CONFIDENCE_THRESHOLD = float(os.getenv("CITYLENS_CONF", "0.35"))
+# Open-vocabulary models (YOLOE / YOLO-World, built from text prompts by
+# training/make_garbage_model.py) score lower than trained models even
+# when right, so they get their own threshold. Applied automatically.
+OPEN_VOCAB_CONF = float(os.getenv("CITYLENS_OPEN_VOCAB_CONF", "0.2"))
 IMAGE_SIZE = int(os.getenv("CITYLENS_IMGSZ", "640"))
 
 # ── OpenCV preprocessing ──────────────────────────────────────────────
@@ -44,6 +59,11 @@ MAX_UPLOAD_MB = 15
 CLASS_ALIASES = {
     "garbage_dumping": "garbage_dumping", "garbage": "garbage_dumping", "trash": "garbage_dumping",
     "waste": "garbage_dumping", "litter": "garbage_dumping", "rubbish": "garbage_dumping", "dump": "garbage_dumping",
+    # text prompts used by training/make_garbage_model.py
+    "overflowing_garbage": "garbage_dumping", "garbage_bag": "garbage_dumping", "trash_bag": "garbage_dumping",
+    "pile_of_garbage": "garbage_dumping",
+    # NOT mapped on purpose: "dumpster", "garbage_bin". They are decoy prompts
+    # that soak up bins, so an empty bin isn't reported as garbage.
     "pothole": "pothole", "potholes": "pothole",
     "illegal_parking": "illegal_parking", "parked_vehicle": "illegal_parking",
 }
@@ -75,10 +95,33 @@ SEVERITY_RULES = {
 }
 
 # A vehicle is only proposed as "illegal parking" if it is inside a
-# no-parking zone OR it is large in the frame (clearly the subject of
-# the photo, likely obstructing). Otherwise a car in the background of
-# a garbage photo would hijack the result.
+# no-parking zone, OR a no-parking sign is visible in the photo (OCR or
+# symbol), OR parked on the footpath (scene segmentation), OR it
+# is large in the frame (clearly the subject of the photo, likely
+# obstructing). Otherwise a car in the background of a garbage photo
+# would hijack the result.
 PARKING_MIN_AREA_OUTSIDE_ZONE = 0.12
+
+# Cross-checks that reject impossible potholes (see analysis.py). From
+# above, a dark car roof looks just like a pothole.
+POTHOLE_MAX_VEHICLE_OVERLAP = 0.3   # pothole box this much inside a car box → it's the car
+POTHOLE_MIN_GROUND_SHARE = 0.3      # pothole must be on road/pavement pixels (scene model)
+# The vehicle model runs at this lower threshold so that cars it is less
+# sure about can still veto a "pothole" on their roof. Vehicles below
+# CONFIDENCE_THRESHOLD are used ONLY for that — never reported as parking.
+VEHICLE_VETO_CONF = float(os.getenv("CITYLENS_VEHICLE_VETO_CONF", "0.2"))
+# Test-time augmentation for the vehicle model: it also looks at flipped and
+# rescaled copies of the photo. On a top-down shot of 10 parked cars,
+# yolov8s found 7 without it and all 10 with it (~0.7 s on CPU, less on GPU).
+VEHICLE_TTA = os.getenv("CITYLENS_VEHICLE_TTA", "1") == "1"
+
+# ── No-parking signs in the photo (app/signs.py) ─────────────────────
+# OCR languages for EasyOCR (English + Kannada for Mangaluru). Kannada and
+# Hindi can't share one EasyOCR reader; use "en,hi" for Hindi boards.
+# Empty value turns OCR off; the no-parking SYMBOL is still detected.
+OCR_LANGS = os.getenv("CITYLENS_OCR_LANGS", "en,kn")
+SIGN_OCR_MIN_CONF = float(os.getenv("CITYLENS_SIGN_OCR_CONF", "0.3"))   # ignore OCR text below this
+SIGN_SYMBOL_MIN_RADIUS = 10   # px in the prepared image; smaller red rings are ignored
 
 # ── No-parking zones (name, latitude, longitude, radius in metres) ───
 # Example Mangaluru locations — replace with real notified zones.

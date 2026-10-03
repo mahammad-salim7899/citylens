@@ -112,7 +112,7 @@ function Details({ id }) {
                   {complaint.after_image_url ? 'Before · original citizen image' : 'Original citizen image'}
                 </figcaption>
                 <div className="overflow-hidden rounded-xl">
-                  <DetectionOverlay src={complaint.image_url} detections={det.detections} showBoxes={showBoxes}
+                  <DetectionOverlay src={complaint.image_url} detections={det.detections} signs={det.signs || []} showBoxes={showBoxes}
                     imageWidth={det.image_width} imageHeight={det.image_height} maxHeight="max-h-80" />
                 </div>
               </figure>
@@ -137,6 +137,11 @@ function Details({ id }) {
                   {primary && (
                     <Field label="Bounding box (x1, y1, x2, y2)" wide>
                       <span className="font-mono text-xs font-normal text-ink-700">[{primary.bbox.map(Math.round).join(', ')}] px of {det.image_width}×{det.image_height}</span>
+                    </Field>
+                  )}
+                  {det.no_parking_sign && (
+                    <Field label="Sign read in the photo" wide>
+                      <span className="font-normal text-ink-700">{det.no_parking_sign}</span>
                     </Field>
                   )}
                   {det.severity_reason && <Field label="Severity reason" wide><span className="font-normal text-ink-700">{det.severity_reason}</span></Field>}

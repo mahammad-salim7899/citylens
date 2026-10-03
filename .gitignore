@@ -8,3 +8,4 @@ __pycache__/
 backend/data/
 backend/models/*.pt
 *.pt
+backend/models/.cache/

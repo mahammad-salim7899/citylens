@@ -19,6 +19,7 @@ export default function DetectionResult({ image, result, finalIssue }) {
         src={image}
         alt="Your report photo"
         detections={result.detections}
+        signs={result.signs}
         imageWidth={result.imageWidth}
         imageHeight={result.imageHeight}
       />
@@ -58,6 +59,12 @@ export default function DetectionResult({ image, result, finalIssue }) {
           </div>
         )}
       </div>
+
+      {result.note && nothingFound && (
+        <p className="border-t border-ink-200 bg-signal-amberLight/40 px-5 py-3 text-sm text-ink-700">
+          <span className="font-medium text-ink-900">What we saw:</span> {result.note}
+        </p>
+      )}
 
       {result.severityReason && !nothingFound && (
         <p className="border-t border-ink-200 px-5 py-3 text-xs text-ink-500">

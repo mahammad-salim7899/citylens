@@ -26,6 +26,8 @@ from pydantic import BaseModel, Field
 from . import analysis, auth, config, geocode
 from .detector import Detector
 from .preprocessing import InvalidImageError, prepare
+from .scene import SceneSegmenter
+from .signs import SignReader
 from .store import EmailTakenError, Store, now_iso, public_user
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -34,6 +36,8 @@ log = logging.getLogger("citylens")
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 detector = Detector()
+segmenter = SceneSegmenter()
+sign_reader = SignReader()
 store: Store | None = None
 
 
@@ -53,6 +57,10 @@ async def lifespan(app: FastAPI):
                     config.SEED_OFFICER_PASSWORD)
     if not detector.loaded_models():
         detector.load()
+    if not segmenter.loaded and segmenter.status_text == "not loaded":
+        segmenter.load()
+    if not sign_reader.loaded and sign_reader.status_text == "not loaded":
+        sign_reader.load()
     yield
 
 
@@ -107,7 +115,7 @@ def require_officer(user: dict = Depends(current_user)) -> dict:
 # ── Health ────────────────────────────────────────────────────────────
 @app.get("/api/health")
 def health():
-    return {"ok": True, "models": detector.status()}
+    return {"ok": True, "models": {**detector.status(), "scene": segmenter.status(), "signs": sign_reader.status()}}
 
 
 # ── Auth ──────────────────────────────────────────────────────────────
@@ -174,7 +182,15 @@ async def detect(
     except InvalidImageError as e:
         raise HTTPException(400, str(e)) from e
     boxes = detector.detect(img)
-    return analysis.analyze(boxes, img.original_width, img.original_height, latitude, longitude, detector.loaded_models())
+    # Road/sidewalk segmentation and sign reading are only needed to judge
+    # parked vehicles, so skip them (and their cost) when no vehicle was found.
+    scene = segmenter.segment(img) if any(b.model == "vehicle" for b in boxes) else None
+    has_vehicle = any(b.model == "vehicle" and b.confidence >= config.CONFIDENCE_THRESHOLD for b in boxes)
+    signs = sign_reader.read(img) if has_vehicle else []
+    used = (detector.loaded_models() + (["scene"] if scene is not None else [])
+            + (["signs"] if has_vehicle else []))
+    return analysis.analyze(boxes, img.original_width, img.original_height, latitude, longitude, used,
+                            scene, signs)
 
 
 # ── Geocoding ─────────────────────────────────────────────────────────

@@ -24,7 +24,11 @@ const SEVERITIES = ['Low', 'Medium', 'High']
  * Convert any backend/mock response into the one shape the UI uses:
  * {
  *   issue, label, confidence, severity, severityReason,
- *   detections: [{ issue, className, confidence, bbox:[x1,y1,x2,y2] }],
+ *   detections: [{ issue, className, confidence, bbox:[x1,y1,x2,y2],
+ *                  polygon:[[x,y],…]|null,   // instance mask (segmentation models)
+ *                  footpath:0–1|null }],     // vehicles: share of ground contact on sidewalk
+ *   signs: [{ kind: 'no_parking'|'parking_allowed', text, source: 'ocr'|'symbol', bbox, confidence }],
+ *   noParkingSign: 'NO PARKING' | null,
  *   imageWidth, imageHeight, source: 'mock' | 'model', model
  * }
  * `issue` is null when nothing supported was found.
@@ -36,6 +40,8 @@ export function normalizeDetection(raw = {}, fallbackSize = {}) {
       className: d.class || d.class_name || d.name || d.issue,
       confidence: Number(d.confidence ?? d.conf ?? 0),
       bbox: Array.isArray(d.bbox) && d.bbox.length === 4 ? d.bbox.map(Number) : null,
+      polygon: Array.isArray(d.polygon) && d.polygon.length >= 3 ? d.polygon : null,
+      footpath: typeof d.footpath === 'number' ? d.footpath : null,
     }))
     .filter((d) => d.bbox)
 
@@ -55,6 +61,13 @@ export function normalizeDetection(raw = {}, fallbackSize = {}) {
     confidence: issue ? confidence : null,
     severity: SEVERITIES.includes(raw.severity) ? raw.severity : null,
     severityReason: raw.severity_reason || null,
+    // Why nothing was reported when something was seen (e.g. legally parked cars).
+    note: raw.note || null,
+    // Parking signs read in the photo (OCR text or the no-parking symbol).
+    signs: (raw.signs || [])
+      .filter((s) => Array.isArray(s.bbox) && s.bbox.length === 4)
+      .map((s) => ({ kind: s.kind, text: s.text, source: s.source, bbox: s.bbox.map(Number), confidence: Number(s.confidence || 0) })),
+    noParkingSign: raw.no_parking_sign || null,
     detections,
     imageWidth: raw.image_width || fallbackSize.width || null,
     imageHeight: raw.image_height || fallbackSize.height || null,

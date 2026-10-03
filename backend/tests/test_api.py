@@ -29,6 +29,8 @@ from PIL import Image  # noqa: E402
 
 from app import main  # noqa: E402
 from app.detector import ModelSlot  # noqa: E402
+from app.scene import SceneMap  # noqa: E402
+from app.signs import SignHit, classify_text, find_symbols, group_lines  # noqa: E402
 from app.store import Store  # noqa: E402
 
 OFFICER_PASSWORD = main.config.SEED_OFFICER_PASSWORD
@@ -43,20 +45,74 @@ class _Box:
         self.xyxy = np.array([xyxy], dtype=float)
 
 
+class _Masks:
+    def __init__(self, polygons):
+        self.xy = [np.asarray(p, dtype=float) for p in polygons]
+
+
 class _Result:
-    def __init__(self, names, boxes):
+    def __init__(self, names, boxes, polygons=None):
         self.names = names
         self.boxes = boxes
+        self.masks = _Masks(polygons) if polygons is not None else None
 
 
 class FakeYOLO:
-    def __init__(self, names, boxes):
+    """Shaped like Ultralytics results. Give `polygons` (one per box, in the
+    model-input image's pixels) to behave like a YOLOv8-seg model."""
+
+    def __init__(self, names, boxes, polygons=None):
         self.names = names
         self._boxes = boxes
+        self._polygons = polygons
 
     def predict(self, img, **kw):
-        # boxes are given in the model-input image's pixels
-        return [_Result(self.names, [_Box(*b) for b in self._boxes])]
+        self.last_kwargs = kw
+        return [_Result(self.names, [_Box(*b) for b in self._boxes], self._polygons)]
+
+
+class FakeSegmenter:
+    """Stands in for SceneSegmenter so tests never download SegFormer."""
+
+    def __init__(self, scene=None):
+        self.scene = scene
+        self.calls = 0
+        self.status_text = "test"
+
+    @property
+    def loaded(self):
+        return self.scene is not None
+
+    def status(self):
+        return {"status": "loaded" if self.loaded else "disabled", "path": "fake", "classes": []}
+
+    def segment(self, img):
+        self.calls += 1
+        return self.scene
+
+
+class FakeSignReader:
+    """Stands in for SignReader so tests never load EasyOCR."""
+
+    def __init__(self, hits=None):
+        self.hits = hits or []
+        self.calls = 0
+        self.status_text = "test"
+        self.loaded = True
+
+    def status(self):
+        return {"status": "test", "languages": [], "symbols": True}
+
+    def read(self, img):
+        self.calls += 1
+        return self.hits
+
+
+def scene_with_sidewalk_left(width=1600, height=1200):
+    """Synthetic road/sidewalk map: left half of the photo is sidewalk."""
+    labels = np.zeros((height // 4, width // 4), dtype=np.uint8)   # 0 = road
+    labels[:, : labels.shape[1] // 2] = 1                           # 1 = sidewalk
+    return SceneMap(labels=labels, factor=0.25, road_id=0, sidewalk_id=1)
 
 
 def jpeg(w=1600, h=1200) -> bytes:
@@ -68,6 +124,8 @@ def jpeg(w=1600, h=1200) -> bytes:
 @pytest.fixture()
 def client(tmp_path):
     main.store = Store(tmp_path / "t.db", main.config.UPLOAD_DIR)  # same folder the app serves at /uploads
+    main.segmenter = FakeSegmenter()  # scene model off unless a test turns it on
+    main.sign_reader = FakeSignReader()  # no signs unless a test adds them
     main.detector.slots = [
         ModelSlot("garbage", "fake", "issue", model=FakeYOLO({0: "garbage"}, []), status="loaded"),
         ModelSlot("pothole", "fake", "issue", model=None, status="missing"),
@@ -77,8 +135,10 @@ def client(tmp_path):
         yield c
 
 
-def set_boxes(slot_key, boxes):
-    next(s for s in main.detector.slots if s.key == slot_key).model._boxes = boxes
+def set_boxes(slot_key, boxes, polygons=None):
+    model = next(s for s in main.detector.slots if s.key == slot_key).model
+    model._boxes = boxes
+    model._polygons = polygons
 
 
 # ── auth helpers ──────────────────────────────────────────────────────
@@ -444,3 +504,270 @@ def test_opens_a_database_created_before_accounts_existed(tmp_path):
     # the old row survives, unowned, and still reaches its department queue
     assert len(store.list(department="roads")) == 1
     assert store.list(user_id="u_anybody") == []
+
+
+# ── segmentation: mask-based severity ─────────────────────────────────
+def test_health_reports_scene_model(client):
+    assert "scene" in client.get("/api/health").json()["models"]
+
+
+def test_pothole_severity_uses_the_mask_not_the_box(client, citizen):
+    """An irregular pothole fills a fraction of its box. The box (25% of
+    the photo) would say High; the real mask (~3%) says Low."""
+    pothole = next(s for s in main.detector.slots if s.key == "pothole")
+    pothole.model, pothole.status = FakeYOLO({0: "pothole"}, []), "loaded"
+    # model-input pixels (1280x960, i.e. the 1600x1200 upload at scale 0.8)
+    box = [256, 240, 896, 720]
+    thin_mask = [[300, 700], [850, 700], [850, 640], [300, 690]]       # a thin crescent along the bottom
+    set_boxes("pothole", [(0, 0.88, box)], [thin_mask])
+    r = client.post("/api/detect", files={"image": ("p.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "pothole"
+    assert r["severity"] == "Low", r["severity_reason"]
+    assert "segmentation mask" in r["severity_reason"]
+    poly = r["detections"][0]["polygon"]
+    assert poly and poly[0] == [375.0, 875.0]      # 300/0.8, 700/0.8 → back in ORIGINAL pixels
+
+
+def test_box_only_models_still_use_the_box(client, citizen):
+    set_boxes("garbage", [(0, 0.91, [256, 240, 896, 720])])            # no polygons
+    r = client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert r["severity"] == "High"
+    assert "segmentation mask" not in r["severity_reason"]
+    assert r["detections"][0]["polygon"] is None
+
+
+def test_overlapping_garbage_masks_are_counted_once(client, citizen):
+    """Two detections of the same pile: summed areas would double count
+    (20% → High); the union of the masks is the true 10% → Medium."""
+    square = [[200, 200], [604, 200], [604, 504], [200, 504]]           # ≈10% of 1280x960
+    set_boxes("garbage", [(0, 0.9, [200, 200, 604, 504]), (0, 0.8, [200, 200, 604, 504])], [square, square])
+    r = client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert r["severity"] == "Medium", r["severity_reason"]
+    assert "about 10%" in r["severity_reason"]
+
+
+# ── segmentation: road / sidewalk for parking ─────────────────────────
+def test_small_car_on_the_footpath_counts_as_illegal_parking(client, citizen):
+    """Too small for the size rule and no zone — but it's on the sidewalk."""
+    main.segmenter = FakeSegmenter(scene_with_sidewalk_left())
+    set_boxes("vehicle", [(2, 0.9, [100, 400, 400, 600])])              # left side of the photo, ~7% of frame
+    r = client.post("/api/detect", files={"image": ("c.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "illegal_parking"
+    assert r["detections"][0]["footpath"] == 1.0
+    assert "footpath" in r["severity_reason"]
+    assert r["severity"] == "Medium"                                     # Low by size, raised one level
+    assert r["scene"]["sidewalk"] == 0.5
+    assert "scene" in r["models_used"]
+
+
+def test_small_car_on_the_road_is_still_ignored(client, citizen):
+    main.segmenter = FakeSegmenter(scene_with_sidewalk_left())
+    set_boxes("vehicle", [(2, 0.9, [900, 400, 1200, 600])])             # right side = road
+    r = client.post("/api/detect", files={"image": ("c.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+
+
+def test_scene_model_only_runs_when_a_vehicle_is_found(client, citizen):
+    fake = FakeSegmenter(scene_with_sidewalk_left())
+    main.segmenter = fake
+    set_boxes("garbage", [(0, 0.9, [256, 240, 896, 720])])
+    client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")}, headers=bearer(citizen["token"]))
+    assert fake.calls == 0
+
+
+def test_parking_falls_back_to_size_rule_without_scene_model(client, citizen):
+    # FakeSegmenter() with no scene = model unavailable
+    set_boxes("vehicle", [(2, 0.88, [100, 200, 700, 700])])              # big vehicle, ~24% of frame
+    r = client.post("/api/detect", files={"image": ("c.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "illegal_parking"
+    assert r["detections"][0]["footpath"] is None and r["scene"] is None
+
+
+# ── open-vocabulary garbage model (training/make_garbage_model.py) ────
+def test_decoy_prompts_are_ignored(client, citizen):
+    """The bin decoys soak up empty bins; only garbage prompts may count."""
+    garbage = next(s for s in main.detector.slots if s.key == "garbage")
+    garbage.model = FakeYOLO({0: "dumpster", 1: "garbage bag", 2: "garbage bin"}, [])
+    set_boxes("garbage", [(0, 0.86, [40, 70, 250, 300]),       # empty bin → decoy
+                          (2, 0.50, [300, 60, 500, 270]),      # bin → decoy
+                          (1, 0.48, [460, 290, 520, 350])])    # the actual bag
+    r = client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "garbage_dumping"
+    assert [d["class"] for d in r["detections"]] == ["garbage bag"]
+
+
+def test_only_decoys_means_nothing_to_report(client, citizen):
+    garbage = next(s for s in main.detector.slots if s.key == "garbage")
+    garbage.model = FakeYOLO({0: "dumpster"}, [])
+    set_boxes("garbage", [(0, 0.9, [40, 70, 250, 300])])          # a clean, empty bin
+    r = client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+
+
+def test_open_vocab_models_get_their_own_threshold(client, citizen):
+    from app.detector import _is_open_vocab
+
+    class YOLOESegModel: ...
+    class DetectionModel: ...
+    assert _is_open_vocab(type("Y", (), {"model": YOLOESegModel()})())
+    assert not _is_open_vocab(type("Y", (), {"model": DetectionModel()})())
+
+    garbage = next(s for s in main.detector.slots if s.key == "garbage")
+    garbage.conf = main.config.OPEN_VOCAB_CONF
+    client.post("/api/detect", files={"image": ("g.jpg", jpeg(), "image/jpeg")}, headers=bearer(citizen["token"]))
+    assert garbage.model.last_kwargs["conf"] == main.config.OPEN_VOCAB_CONF
+    vehicle = next(s for s in main.detector.slots if s.key == "vehicle")
+    assert vehicle.model.last_kwargs["conf"] == main.config.CONFIDENCE_THRESHOLD
+
+
+# ── cross-checks between models ───────────────────────────────────────
+def use_pothole_model(boxes, polygons=None):
+    pothole = next(s for s in main.detector.slots if s.key == "pothole")
+    pothole.model, pothole.status = FakeYOLO({0: "pothole"}, boxes, polygons), "loaded"
+
+
+def test_pothole_on_a_car_roof_is_rejected(client, citizen):
+    """Top-down street photo: the pothole model fires on a dark car roof.
+    A pothole can't be on a car, so it must not be reported."""
+    set_boxes("vehicle", [(2, 0.89, [400, 130, 540, 200])])            # small parked car
+    use_pothole_model([(0, 0.71, [425, 140, 515, 190])])                # "pothole" = its roof
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+
+
+def test_pothole_in_the_open_road_is_still_found(client, citizen):
+    set_boxes("vehicle", [(2, 0.89, [400, 130, 540, 200])])
+    use_pothole_model([(0, 0.80, [250, 500, 330, 560])])                # nowhere near the car
+    r = client.post("/api/detect", files={"image": ("p.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "pothole"
+
+
+def test_low_confidence_car_vetoes_pothole_but_is_not_reported(client, citizen):
+    set_boxes("vehicle", [(2, 0.25, [400, 130, 540, 200])])             # below CONFIDENCE_THRESHOLD
+    use_pothole_model([(0, 0.71, [425, 140, 515, 190])])
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+    assert r["note"] is None                                             # a weak car isn't "seen"
+
+
+def test_legally_parked_cars_get_an_explanation(client, citizen):
+    set_boxes("vehicle", [(2, 0.89, [400, 130, 540, 200]), (2, 0.7, [100, 130, 240, 200])])
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+    assert r["note"].startswith("2 parked vehicles found")
+
+
+def test_pothole_off_the_ground_is_rejected_by_scene_model(client, citizen):
+    """With the scene model: a 'pothole' on a wall/building (not road or
+    pavement pixels) is rejected even when no car was detected there."""
+    labels = np.full((300, 400), 2, dtype=np.uint8)                     # 2 = building everywhere…
+    labels[150:, :] = 0                                                  # …except road in the bottom half
+    main.segmenter = FakeSegmenter(SceneMap(labels=labels, factor=0.25, road_id=0, sidewalk_id=1))
+    set_boxes("vehicle", [(2, 0.9, [900, 800, 1000, 900])])             # a car, so the scene model runs
+    use_pothole_model([(0, 0.8, [100, 40, 300, 200]),                   # on the building
+                       (0, 0.6, [300, 700, 500, 850])])                 # on the road
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "pothole"
+    assert len(r["detections"]) == 1 and r["detections"][0]["confidence"] == 0.6
+
+
+# ── No-parking signs (OCR + symbol) ───────────────────────────────────
+@pytest.mark.parametrize("text,kind", [
+    ("NO PARKING", "no_parking"),
+    ("N0 PARKlNG", "no_parking"),            # typical OCR slips
+    ("No Parking Zone", "no_parking"),
+    ("DO NOT PARK HERE", "no_parking"),
+    ("TOW AWAY ZONE", "no_parking"),
+    ("ವಾಹನ ನಿಲುಗಡೆ ನಿಷೇಧ", "no_parking"),    # Kannada: vehicle parking prohibited
+    ("PARKING", "parking_allowed"),          # must NOT count as "no parking"
+    ("PAY AND PARK", "parking_allowed"),
+    ("PAYANT", "parking_allowed"),
+    ("SHREE MEDICALS", None),
+    ("NO", None),
+])
+def test_sign_text_classification(text, kind):
+    assert classify_text(text)[0] == kind
+
+
+def test_sign_lines_on_one_board_are_grouped():
+    lines = [([100, 100, 160, 130], "NO", 0.9), ([90, 135, 210, 165], "PARKING", 0.8),
+             ([600, 100, 700, 130], "BAKERY", 0.9)]
+    groups = group_lines(lines)
+    assert len(groups) == 2
+    board = next(g for g in groups if "PARKING" in g[1])
+    assert board[1] == "NO PARKING" and classify_text(board[1])[0] == "no_parking"
+
+
+def _draw_sign(slash=True, blue=True, size=400):
+    import cv2
+    img = np.full((size, size, 3), 200, np.uint8)
+    c, r = (size // 2, size // 2), size // 4
+    cv2.circle(img, c, r, (200, 80, 0) if blue else (200, 200, 200), -1)    # BGR blue disc
+    cv2.circle(img, c, r, (0, 0, 220), max(4, r // 7))                      # red ring
+    if slash:
+        d = int(r * 0.7)
+        cv2.line(img, (c[0] - d, c[1] - d), (c[0] + d, c[1] + d), (0, 0, 220), max(4, r // 7))
+    return img
+
+
+def test_no_parking_symbol_is_found():
+    hits = find_symbols(_draw_sign())
+    assert len(hits) == 1 and hits[0][1] > 0.6
+
+
+@pytest.mark.parametrize("kwargs", [{"slash": False}, {"blue": False}])
+def test_other_red_rings_are_not_no_parking(kwargs):
+    # A red ring without the slash (e.g. "no entry"/speed signs) or without the
+    # blue inside (e.g. "no vehicles") is a different sign.
+    assert find_symbols(_draw_sign(**kwargs)) == []
+
+
+def test_car_under_no_parking_sign_is_illegal_parking(client, citizen):
+    """A small car on the road isn't reported on its own — but it is when a
+    NO PARKING board is visible in the same photo."""
+    set_boxes("vehicle", [(2, 0.89, [400, 130, 540, 200])])
+    main.sign_reader = FakeSignReader([SignHit("no_parking", "NO PARKING", "ocr", [50, 40, 200, 120], 0.88)])
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] == "illegal_parking"
+    assert r["no_parking_sign"] == "NO PARKING"
+    assert 'sign reading "NO PARKING"' in r["severity_reason"]
+    assert r["severity"] == "Medium"            # Low by size, raised one level by the sign
+    assert r["signs"][0]["source"] == "ocr" and "signs" in r["models_used"]
+
+
+def test_parking_allowed_sign_is_mentioned_in_the_note(client, citizen):
+    set_boxes("vehicle", [(2, 0.89, [400, 130, 540, 200])])
+    main.sign_reader = FakeSignReader([SignHit("parking_allowed", "PAYANT", "ocr", [50, 40, 200, 120], 0.9)])
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    data={"latitude": "12.95", "longitude": "74.90"}, headers=bearer(citizen["token"])).json()
+    assert r["issue"] is None
+    assert r["note"].startswith('A parking sign is visible ("PAYANT").')
+
+
+def test_signs_are_not_read_without_a_vehicle(client, citizen):
+    main.sign_reader = reader = FakeSignReader([SignHit("no_parking", "NO PARKING", "ocr", [0, 0, 9, 9], 0.9)])
+    set_boxes("garbage", [(0, 0.9, [100, 100, 900, 900])])
+    r = client.post("/api/detect", files={"image": ("s.jpg", jpeg(), "image/jpeg")},
+                    headers=bearer(citizen["token"])).json()
+    assert reader.calls == 0
+    assert r["issue"] == "garbage_dumping" and r["no_parking_sign"] is None
+
+
+def test_sign_label_is_clean_even_when_ocr_is_noisy():
+    # The red border of a board is often read as "I" around the words.
+    assert classify_text("N0 IPARKINGI")[::2] == ("no_parking", "NO PARKING")
+    assert classify_text("NO PARKING ZONE")[2] == "NO PARKING ZONE"
